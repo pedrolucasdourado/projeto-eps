@@ -1,0 +1,26 @@
+name: DevSecOps-PCDF
+# Define que a auditoria roda em cada commit ou Pull Request
+on: [push, pull_request]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Instalar Ferramentas de Auditoria
+        run: pip install bandit safety
+
+      - name: SAST - Auditoria Bandit (Vulnerabilidades Lógicas)
+        # Analisa o código em busca de funções perigosas
+        run: bandit -r src/
+
+      - name: SCA - Auditoria Safety (Bibliotecas Inseguras)
+        # Checa se as dependências possuem falhas conhecidas
+        run: safety check

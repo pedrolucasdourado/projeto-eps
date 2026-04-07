@@ -1,0 +1,21 @@
+services:
+  # O 'app' é onde o código dos alunos (Django/Python) vai rodar
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_USER=pcdf_admin
+      - POSTGRES_PASSWORD=pcdf_secure_pass
+      - DATABASE_URL=postgresql://pcdf_admin:pcdf_secure_pass@db:5432/investigacao
+    depends_on:
+      - db
+
+  # O 'db' é o banco de dados PostgreSQL isolado
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
