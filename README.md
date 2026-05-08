@@ -1,46 +1,99 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/5NN1Yng5)
-# template-fcte-unb-eps5
-# 🛡️ FCTE-UNB-EPS5: Operação Base PCDF (SecOps-First)
+# Assistente de Apreensão Inteligente (AAI)
 
-Este repositório é a matriz oficial para o desenvolvimento dos aplicativos em parceria com a PCDF. O foco é a **Paridade UnB-PCDF** e a aplicação do **Domínio 8 do CISSP** (Segurança no Desenvolvimento de Software).
+Aplicação full stack para ambiente operacional com autenticação por JWT, API FastAPI, PostgreSQL com migrations Flyway, frontend Next.js e orquestração com Docker Compose.
 
-## 🚀 Desafios por Squad (Contexto Operacional)
+## Stack
 
-Cada grupo deve focar nos requisitos específicos de seu sistema, conforme o detalhamento técnico:
+| Camada       | Tecnologia        |
+|-------------|-------------------|
+| Frontend    | Next.js 15, React 19, Tailwind CSS |
+| Backend     | Python 3.12, FastAPI |
+| Banco       | PostgreSQL 16 |
+| Migrations  | Flyway 10 |
 
-### 1. Sistema de Preservação e Coleta de Vestígios Digital - cadeia de custodia
-* [cite_start]**Objetivo**: Garantir a Cadeia de Custódia (Lei nº 13.964/2019)[cite: 2].
-* [cite_start]**Mandatório**: Geração de Hash SHA-256 imediata e trilha de auditoria (Audit Trail)[cite: 6, 8].
-* [cite_start]**Segurança**: Armazenamento imutável (WORM/Blockchain) e criptografia AES-256[cite: 10, 12].
+## Pré-requisitos
 
-### 2. Assistente de Apreensão Inteligente (Computer Vision)
-* [cite_start]**Objetivo**: Automatizar a lavratura do Auto de Apreensão via IA[cite: 56].
-* [cite_start]**Mandatório**: OCR para extração de números de série/IMEI e classificação de objetos (Armas, Celulares)[cite: 58].
-* [cite_start]**Segurança**: Privacidade (LGPD) com desfoque automático de rostos de terceiros[cite: 61].
+- [Docker](https://docs.docker.com/get-docker/) e Docker Compose **v2.20+** (necessário para o backend aguardar o serviço **flyway** com `condition: service_completed_successfully`)
 
-### 3. Buscador OSINT Automatizado
-* [cite_start]**Objetivo**: Reduzir o tempo de levantamento de dados em fontes abertas[cite: 35].
-* [cite_start]**Mandatório**: Busca Federada (CPF, Nome, Vulgo) e captura de evidências (Snapshots)[cite: 36, 38].
-* [cite_start]**Segurança**: Anonimato operacional com rotação de IP e VPN para mascarar a origem PCDF[cite: 41, 51].
+## Como executar
 
-### 4. Analisador Semântico de Documentos
-* [cite_start]**Objetivo**: Automatizar a triagem de depoimentos e documentos via NLP/LLM[cite: 73].
-* [cite_start]**Mandatório**: Extração de entidades (NER), análise de contradições e geração de cronologia[cite: 76, 77].
-* [cite_start]**Segurança**: Baixa alucinação via RAG e processamento em modelos locais (Local-LLM) para privacidade total[cite: 79].
+1. Na raiz do projeto:
 
----
+   ```bash
+   cp .env.example .env
+   ```
 
-## 🛠️ Setup do Ambiente (DevSecOps)
+2. Subir todos os serviços:
 
-Para garantir a validade jurídica, o ambiente deve ser isolado:
+   ```bash
+   docker compose up --build
+   ```
 
-1. [cite_start]**Docker**: Execute `docker-compose up --build` para subir o app e o banco PostgreSQL[cite: 31, 67].
-2. [cite_start]**Auditoria**: O pipeline de CI/CD rodará automaticamente o **Bandit** (SAST) e o **Safety** (SCA).
-3. **Validação**: Utilize o script `src/olaseguranca.py` para testar a validação de dados com Pydantic.
+3. Abrir no navegador:
 
-## 📝 Diário de Bordo (Esforço Documentado)
-Registre aqui os erros de infraestrutura encontrados durante o mês de março:
+   - **Frontend:** http://localhost:3000  
+   - **API (documentação OpenAPI):** http://localhost:8000/docs  
+   - **Healthcheck:** http://localhost:8000/health  
 
-| Data | Componente | Erro Identificado | Solução |
-| :--- | :--- | :--- | :--- |
-| | | | |
+### Credenciais de teste
+
+| Campo  | Valor            |
+|--------|------------------|
+| E-mail | `admin@admin.com` |
+| Senha  | `admin123`        |
+
+O usuário é criado pela migration Flyway `V1__create_users_and_seed.sql`.
+
+## Cadastros auxiliares
+
+As entidades de apoio ao ACBA ficam em `/api/cadastros/*` (UFs, cidades, unidades, delegacias, tipos de procedimento, autoridades, escrivãos, membros da equipe e condutores). No frontend, use o menu **Cadastros auxiliares** ou as rotas `/cadastros/{slug}`.
+
+- **Flyway `V3__cadastros_auxiliares.sql`** — cria as tabelas e insere **DF** e **Brasília** vinculada ao DF, além de exemplos genéricos opcionais.
+- **Flyway `V4__acba_refactor_catalog_fks.sql`** — redefine `acba_records` com chaves estrangeiras para esses cadastros e tabela associativa para múltiplos membros da equipe.
+
+## Módulo ACBA
+
+O módulo **Auto Circunstanciado de Busca e Arrecadação (ACBA)** inclui:
+
+- CRUD (`/api/acba`): criar, listar, detalhar, editar e excluir, com vínculos aos cadastros auxiliares (evita texto livre onde há catálogo).
+- Histórico de schema: `V2__create_acba_records.sql` (versão inicial da tabela); **estrutura atual** consolidada em `V4` após cadastros em `V3`.
+- **PDF** (`GET /api/acba/{id}/pdf`): preenchimento de um **template DOCX** (`python-docx`) com placeholders `{{...}}` e conversão para PDF via **LibreOffice** no container do backend. Substitua o arquivo em `src/backend/templates/` pelo documento oficial da instituição mantendo os mesmos placeholders (veja `src/backend/templates/README.md`).
+- Telas: `/acba`, `/acba/new`, `/acba/{id}`, `/acba/{id}/edit`; no detalhe, **Gerar PDF** faz o download do arquivo gerado.
+
+## O que sobe no Compose
+
+1. **postgres** — banco persistente (`postgres_data`).
+2. **flyway** — executa migrations em `/flyway/sql` e encerra (`migrate`).
+3. **backend** — inicia depois que o Flyway conclui com sucesso (`depends_on`).
+4. **frontend** — sobe após o backend estar saudável; build com `NEXT_PUBLIC_API_URL` padrão `http://localhost:8000` (chamada direta da API, com CORS liberado para `localhost` e `127.0.0.1` na porta do frontend).
+
+## Variáveis de ambiente
+
+Veja [.env.example](.env.example). Principais:
+
+- `DATABASE_URL` — montada pelo Compose para o backend (`postgresql://...`).
+- `JWT_SECRET` — segredo dos tokens (troque em produção).
+- `CORS_ORIGINS` — origens permitidas para o frontend (por vírgula).
+- `NEXT_PUBLIC_API_URL` — URL da API no navegador (padrão no Compose: `http://localhost:8000`). O backend já envia `Access-Control-Allow-Origin` para `localhost` e `127.0.0.1` na porta do frontend.
+- `INTERNAL_API_URL` — opcional. Se definir (ex.: `http://backend:8000`) **e** deixar `NEXT_PUBLIC_API_URL` vazio no build, o Next faz proxy de `/api` para esse host (útil para evitar CORS em cenários especiais). Exige que o hostname resolva dentro da rede do container.
+- `ACBA_DOCX_TEMPLATE_PATH` — caminho absoluto no container para o DOCX modelo do ACBA (definido no Compose).
+- `LIBREOFFICE_CMD` — comando para conversão headless (ex.: `soffice`).
+
+> O Next.js incorpora `NEXT_PUBLIC_*` **no momento do build**. Em produção com outra URL de API, defina `NEXT_PUBLIC_API_URL` antes do `docker compose build`.
+
+## Estrutura do repositório
+
+```
+├── src/
+│   ├── frontend/      # Next.js (login, dashboard, ACBA, cadastros auxiliares)
+│   └── backend/       # FastAPI (/api/auth, /api/acba, /api/cadastros, health)
+├── database/flyway/sql/ # Scripts versionados Flyway
+├── docker-compose.yml
+├── .env.example
+└── README.md
+```
+
+## Desenvolvimento local (sem Docker)
+
+- **Backend:** Python 3.12, `pip install -r src/backend/requirements.txt`, exporte `DATABASE_URL` apontando para um Postgres com migrations aplicadas, depois `uvicorn app.main:app --reload` a partir da pasta `src/backend/`.
+- **Frontend:** Node 20+, `npm install` e `npm run dev` na pasta `src/frontend/`, com `NEXT_PUBLIC_API_URL` apontando para a API.

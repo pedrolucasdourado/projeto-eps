@@ -34,5 +34,5 @@
 Para gerar um modelo mínimo com todos os marcadores (desenvolvimento):
 
 ```bash
-cd backend && pip install python-docx && python scripts/generate_acba_template_docx.py
+cd src/backend && pip install python-docx && python scripts/generate_acba_template_docx.py
 ```

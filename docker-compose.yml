@@ -1,21 +1,79 @@
 services:
-  # O 'app' é onde o código dos alunos (Django/Python) vai rodar
-  app:
-    build: .
-    ports:
-      - "8000:8000"
+  postgres:
+    image: postgres:16-alpine
     environment:
-      - POSTGRES_USER=pcdf_admin
-      - POSTGRES_PASSWORD=pcdf_secure_pass
-      - DATABASE_URL=postgresql://pcdf_admin:pcdf_secure_pass@db:5432/investigacao
-    depends_on:
-      - db
-
-  # O 'db' é o banco de dados PostgreSQL isolado
-  db:
-    image: postgres:15-alpine
+      POSTGRES_USER: ${POSTGRES_USER:-aai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aai_secret_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-aai_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\"",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  flyway:
+    image: flyway/flyway:10-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-aai_db}
+      FLYWAY_USER: ${POSTGRES_USER:-aai}
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-aai_secret_change_me}
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+      FLYWAY_CONNECT_RETRIES: "60"
+    volumes:
+      - ./database/flyway/sql:/flyway/sql
+    command: migrate
+
+  backend:
+    build:
+      context: ./src/backend
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-aai}:${POSTGRES_PASSWORD:-aai_secret_change_me}@postgres:5432/${POSTGRES_DB:-aai_db}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://[::1]:3000}"
+      ACBA_DOCX_TEMPLATE_PATH: ${ACBA_DOCX_TEMPLATE_PATH:-/app/templates/acba_template.docx}
+      LIBREOFFICE_CMD: ${LIBREOFFICE_CMD:-}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 8
+      start_period: 25s
+    depends_on:
+      flyway:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./src/frontend
+      args:
+        # Opcional: defina http://backend:8000 e NEXT_PUBLIC_API_URL vazio para proxy /api (mesmo host).
+        # Padrão vazio = sem proxy; o navegador chama a API na porta publicada (localhost:8000).
+        INTERNAL_API_URL: ${INTERNAL_API_URL:-}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres_data:

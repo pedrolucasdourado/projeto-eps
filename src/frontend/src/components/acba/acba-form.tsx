@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   type ReactNode,
   FormEvent,
@@ -79,6 +80,8 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
     initialDetail ? detailToPayload(initialDetail) : emptyPayload(),
   );
   const [error, setError] = useState<string | null>(null);
+  const [membroSearch, setMembroSearch] = useState("");
+  const [funcoesSelecionadas, setFuncoesSelecionadas] = useState<string[]>([]);
 
   const [unidades, setUnidades] = useState<Record<string, unknown>[]>([]);
   const [cidades, setCidades] = useState<Record<string, unknown>[]>([]);
@@ -167,6 +170,41 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
       return true;
     });
   }, [escrivaos, form.delegacia_id, form.unidade_id]);
+
+  const funcoesDisponiveis = useMemo(() => {
+    const unique = new Set<string>();
+    for (const m of membros) {
+      const funcao = String(m.funcao_padrao ?? "").trim();
+      if (funcao) unique.add(funcao);
+    }
+    return Array.from(unique).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [membros]);
+
+  const membrosFiltrados = useMemo(() => {
+    const term = membroSearch.trim().toLowerCase();
+    return membros.filter((m) => {
+      const nome = String(m.nome ?? "");
+      const matricula = String(m.matricula ?? "");
+      const funcao = String(m.funcao_padrao ?? "").trim();
+
+      const matchText =
+        !term ||
+        nome.toLowerCase().includes(term) ||
+        matricula.toLowerCase().includes(term);
+      const matchFuncao =
+        funcoesSelecionadas.length === 0 || funcoesSelecionadas.includes(funcao);
+
+      return matchText && matchFuncao;
+    });
+  }, [membros, membroSearch, funcoesSelecionadas]);
+
+  function toggleFuncao(funcao: string) {
+    setFuncoesSelecionadas((prev) =>
+      prev.includes(funcao)
+        ? prev.filter((f) => f !== funcao)
+        : [...prev, funcao],
+    );
+  }
 
   function toggleMembro(id: number) {
     setForm((prev) => {
@@ -440,21 +478,67 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
 
       {section(
         "Equipe operacional (cadastro)",
-        <div className="max-h-56 space-y-2 overflow-y-auto rounded border border-shell-border p-3">
-          {membros.map((m) => (
-            <label key={String(m.id)} className="flex items-center gap-2 text-sm text-shell-text">
-              <input
-                type="checkbox"
-                checked={form.membro_ids.includes(Number(m.id))}
-                onChange={() => toggleMembro(Number(m.id))}
-              />
-              {String(m.nome)} — {String(m.matricula)}
-              {m.funcao_padrao ? ` (${String(m.funcao_padrao)})` : ""}
-            </label>
-          ))}
-          {membros.length === 0 ? (
-            <p className="text-shell-muted">Cadastre membros em Cadastros auxiliares.</p>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <input
+              className={inputClass()}
+              placeholder="Buscar por nome ou matrícula"
+              value={membroSearch}
+              onChange={(e) => setMembroSearch(e.target.value)}
+              style={{ maxWidth: 320 }}
+            />
+            <Link
+              href="/cadastros/membros-equipe"
+              className="rounded border border-shell-accent/50 bg-shell-accentBlue px-3 py-2 text-xs font-semibold text-shell-text"
+            >
+              Cadastrar membro
+            </Link>
+          </div>
+
+          {funcoesDisponiveis.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {funcoesDisponiveis.map((funcao) => {
+                const active = funcoesSelecionadas.includes(funcao);
+                return (
+                  <button
+                    key={funcao}
+                    type="button"
+                    onClick={() => toggleFuncao(funcao)}
+                    className={`rounded border px-2 py-1 text-xs ${
+                      active
+                        ? "border-shell-accent/60 bg-shell-accentBlue text-shell-text"
+                        : "border-shell-border text-shell-muted"
+                    }`}
+                  >
+                    {funcao}
+                  </button>
+                );
+              })}
+            </div>
           ) : null}
+
+          <div className="max-h-56 space-y-2 overflow-y-auto rounded border border-shell-border p-3">
+            {membrosFiltrados.map((m) => (
+              <label key={String(m.id)} className="flex items-center gap-2 text-sm text-shell-text">
+                <input
+                  type="checkbox"
+                  checked={form.membro_ids.includes(Number(m.id))}
+                  onChange={() => toggleMembro(Number(m.id))}
+                />
+                {String(m.nome)} — {String(m.matricula)}
+                {m.funcao_padrao ? ` (${String(m.funcao_padrao)})` : ""}
+              </label>
+            ))}
+            {membros.length === 0 ? (
+              <p className="text-shell-muted">
+                Nenhum membro cadastrado. Use o botão acima para cadastrar em Cadastros auxiliares.
+              </p>
+            ) : membrosFiltrados.length === 0 ? (
+              <p className="text-shell-muted">
+                Nenhum membro encontrado para os filtros selecionados.
+              </p>
+            ) : null}
+          </div>
         </div>,
       )}
 

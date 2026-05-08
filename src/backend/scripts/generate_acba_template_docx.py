@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gera backend/templates/acba_template.docx com marcadores {{...}} para preenchimento via API.
+"""Gera src/backend/templates/acba_template.docx com marcadores {{...}} para preenchimento via API.
 
 Substitua o arquivo gerado pelo DOCX oficial da PCDF, mantendo os mesmos marcadores
 onde couber, ou ajuste build_placeholder_map em app/services/acba_docx_pdf_service.py.
