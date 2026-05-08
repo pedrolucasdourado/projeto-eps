@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply min-h-screen bg-shell-bg text-shell-text antialiased;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2a3342 #0f141c;
+}
