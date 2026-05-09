@@ -13,6 +13,8 @@ import { apiRequest } from "@/lib/api";
 import type {
   AcbaDetail,
   AcbaFormPayload,
+  AgenteBrief,
+  EquipeOperacional,
   ObjetoItem,
   TestemunhaItem,
 } from "@/types/acba";
@@ -27,6 +29,10 @@ function inputClass() {
   return "w-full rounded-lg border border-shell-border bg-shell-bg px-3 py-2 text-sm text-shell-text outline-none focus:border-shell-accent";
 }
 
+function readonlyClass() {
+  return "w-full rounded-lg border border-shell-border bg-shell-bg/60 px-3 py-2 text-sm text-shell-muted";
+}
+
 function emptyPayload(): AcbaFormPayload {
   return {
     numero_auto: "",
@@ -35,17 +41,14 @@ function emptyPayload(): AcbaFormPayload {
     cidade_id: 0,
     data_lavratura: "",
     hora_lavratura: "",
-    autoridade_id: 0,
-    escrivao_id: 0,
     tipo_procedimento_id: 0,
     procedimento_numero: "",
     fundamento_legal: "",
     endereco_busca: "",
     alvo_busca: "",
-    condutor_id: 0,
     assinatura_responsavel: "",
     observacoes: "",
-    membro_ids: [],
+    equipe_id: 0,
     testemunhas: [],
     objetos_arrecadados: [],
   };
@@ -58,18 +61,16 @@ function detailToPayload(d: AcbaDetail): AcbaFormPayload {
     delegacia_id: d.delegacia_id,
     cidade_id: d.cidade_id,
     data_lavratura: d.data_lavratura.slice(0, 10),
-    hora_lavratura: d.hora_lavratura.length >= 5 ? d.hora_lavratura.slice(0, 5) : d.hora_lavratura,
-    autoridade_id: d.autoridade_id,
-    escrivao_id: d.escrivao_id,
+    hora_lavratura:
+      d.hora_lavratura.length >= 5 ? d.hora_lavratura.slice(0, 5) : d.hora_lavratura,
     tipo_procedimento_id: d.tipo_procedimento_id,
     procedimento_numero: d.procedimento_numero,
     fundamento_legal: d.fundamento_legal,
     endereco_busca: d.endereco_busca,
     alvo_busca: d.alvo_busca,
-    condutor_id: d.condutor_id,
     assinatura_responsavel: d.assinatura_responsavel,
     observacoes: d.observacoes,
-    membro_ids: [...d.membro_ids],
+    equipe_id: d.equipe_id,
     testemunhas: (d.testemunhas as TestemunhaItem[]) ?? [],
     objetos_arrecadados: (d.objetos_arrecadados as ObjetoItem[]) ?? [],
   };
@@ -80,58 +81,68 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
     initialDetail ? detailToPayload(initialDetail) : emptyPayload(),
   );
   const [error, setError] = useState<string | null>(null);
-  const [membroSearch, setMembroSearch] = useState("");
-  const [funcoesSelecionadas, setFuncoesSelecionadas] = useState<string[]>([]);
 
   const [unidades, setUnidades] = useState<Record<string, unknown>[]>([]);
   const [cidades, setCidades] = useState<Record<string, unknown>[]>([]);
   const [delegacias, setDelegacias] = useState<Record<string, unknown>[]>([]);
   const [tipos, setTipos] = useState<Record<string, unknown>[]>([]);
-  const [autoridades, setAutoridades] = useState<Record<string, unknown>[]>([]);
-  const [escrivaos, setEscrivaos] = useState<Record<string, unknown>[]>([]);
-  const [membros, setMembros] = useState<Record<string, unknown>[]>([]);
-  const [condutores, setCondutores] = useState<Record<string, unknown>[]>([]);
+  const [equipes, setEquipes] = useState<EquipeOperacional[]>([]);
+  const [agentesPreview, setAgentesPreview] = useState<AgenteBrief[]>(
+    initialDetail?.agentes_equipe ?? [],
+  );
 
   useEffect(() => {
-    if (initialDetail) setForm(detailToPayload(initialDetail));
+    if (initialDetail) {
+      setForm(detailToPayload(initialDetail));
+      setAgentesPreview(initialDetail.agentes_equipe ?? []);
+    }
   }, [initialDetail]);
 
   useEffect(() => {
     async function load() {
       try {
-        const [
-          u,
-          c,
-          d,
-          t,
-          a,
-          e,
-          m,
-          co,
-        ] = await Promise.all([
+        const [u, c, d, t, eq] = await Promise.all([
           apiRequest<Record<string, unknown>[]>("/api/cadastros/unidades"),
           apiRequest<Record<string, unknown>[]>("/api/cadastros/cidades"),
           apiRequest<Record<string, unknown>[]>("/api/cadastros/delegacias"),
-          apiRequest<Record<string, unknown>[]>("/api/cadastros/tipos-procedimento"),
-          apiRequest<Record<string, unknown>[]>("/api/cadastros/autoridades"),
-          apiRequest<Record<string, unknown>[]>("/api/cadastros/escrivaos"),
-          apiRequest<Record<string, unknown>[]>("/api/cadastros/membros-equipe"),
-          apiRequest<Record<string, unknown>[]>("/api/cadastros/condutores"),
+          apiRequest<Record<string, unknown>[]>(
+            "/api/cadastros/tipos-procedimento",
+          ),
+          apiRequest<EquipeOperacional[]>("/api/cadastros/equipes"),
         ]);
         setUnidades(u);
         setCidades(c);
         setDelegacias(d);
         setTipos(t);
-        setAutoridades(a);
-        setEscrivaos(e);
-        setMembros(m);
-        setCondutores(co);
+        setEquipes(eq);
       } catch {
         setError("Não foi possível carregar cadastros auxiliares.");
       }
     }
     void load();
   }, []);
+
+  useEffect(() => {
+    let aborted = false;
+    async function loadAgentes() {
+      if (!form.equipe_id) {
+        setAgentesPreview([]);
+        return;
+      }
+      try {
+        const data = await apiRequest<AgenteBrief[]>(
+          `/api/cadastros/equipes/${form.equipe_id}/agentes`,
+        );
+        if (!aborted) setAgentesPreview(data);
+      } catch {
+        if (!aborted) setAgentesPreview([]);
+      }
+    }
+    void loadAgentes();
+    return () => {
+      aborted = true;
+    };
+  }, [form.equipe_id]);
 
   const delegaciasFiltradas = useMemo(() => {
     return delegacias.filter((row) => {
@@ -143,77 +154,15 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
     });
   }, [delegacias, form.unidade_id, form.cidade_id]);
 
-  const autoridadesFiltradas = useMemo(() => {
-    const did = form.delegacia_id ? Number(form.delegacia_id) : null;
-    const uid = form.unidade_id ? Number(form.unidade_id) : null;
-    return autoridades.filter((row) => {
-      if (did) {
-        if (row.delegacia_id == null || Number(row.delegacia_id) !== did) return false;
-      }
-      if (uid) {
-        if (row.unidade_id == null || Number(row.unidade_id) !== uid) return false;
-      }
-      return true;
-    });
-  }, [autoridades, form.delegacia_id, form.unidade_id]);
+  const equipesAtivas = useMemo(
+    () => equipes.filter((e) => e.ativo),
+    [equipes],
+  );
 
-  const escrivaosFiltrados = useMemo(() => {
-    const did = form.delegacia_id ? Number(form.delegacia_id) : null;
-    const uid = form.unidade_id ? Number(form.unidade_id) : null;
-    return escrivaos.filter((row) => {
-      if (did) {
-        if (row.delegacia_id == null || Number(row.delegacia_id) !== did) return false;
-      }
-      if (uid) {
-        if (row.unidade_id == null || Number(row.unidade_id) !== uid) return false;
-      }
-      return true;
-    });
-  }, [escrivaos, form.delegacia_id, form.unidade_id]);
-
-  const funcoesDisponiveis = useMemo(() => {
-    const unique = new Set<string>();
-    for (const m of membros) {
-      const funcao = String(m.funcao_padrao ?? "").trim();
-      if (funcao) unique.add(funcao);
-    }
-    return Array.from(unique).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [membros]);
-
-  const membrosFiltrados = useMemo(() => {
-    const term = membroSearch.trim().toLowerCase();
-    return membros.filter((m) => {
-      const nome = String(m.nome ?? "");
-      const matricula = String(m.matricula ?? "");
-      const funcao = String(m.funcao_padrao ?? "").trim();
-
-      const matchText =
-        !term ||
-        nome.toLowerCase().includes(term) ||
-        matricula.toLowerCase().includes(term);
-      const matchFuncao =
-        funcoesSelecionadas.length === 0 || funcoesSelecionadas.includes(funcao);
-
-      return matchText && matchFuncao;
-    });
-  }, [membros, membroSearch, funcoesSelecionadas]);
-
-  function toggleFuncao(funcao: string) {
-    setFuncoesSelecionadas((prev) =>
-      prev.includes(funcao)
-        ? prev.filter((f) => f !== funcao)
-        : [...prev, funcao],
-    );
-  }
-
-  function toggleMembro(id: number) {
-    setForm((prev) => {
-      const set = new Set(prev.membro_ids);
-      if (set.has(id)) set.delete(id);
-      else set.add(id);
-      return { ...prev, membro_ids: Array.from(set) };
-    });
-  }
+  const equipeSelecionada = useMemo(
+    () => equipes.find((e) => e.id === form.equipe_id) ?? null,
+    [equipes, form.equipe_id],
+  );
 
   function updateTestemunha(i: number, p: Partial<TestemunhaItem>) {
     const next = [...form.testemunhas];
@@ -242,13 +191,13 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
       form.unidade_id,
       form.delegacia_id,
       form.cidade_id,
-      form.autoridade_id,
-      form.escrivao_id,
       form.tipo_procedimento_id,
-      form.condutor_id,
+      form.equipe_id,
     ];
     if (ids.some((x) => !x || x < 1)) {
-      setError("Selecione unidade, delegacia, cidade, autoridade, escrivão, tipo e condutor.");
+      setError(
+        "Selecione unidade, delegacia, cidade, tipo de procedimento e equipe operacional.",
+      );
       return;
     }
     try {
@@ -366,87 +315,135 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
 
       {section(
         "Autoridade e procedimento",
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <label className="text-sm md:col-span-2">
-            <span className="text-shell-muted">Autoridade policial</span>
-            <select
-              className={`${inputClass()} mt-1`}
-              value={form.autoridade_id || ""}
-              onChange={(e) =>
-                setForm({ ...form, autoridade_id: Number(e.target.value) })
-              }
-              required
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="block text-sm flex-1" style={{ minWidth: 280 }}>
+              <span className="text-shell-muted">Equipe operacional</span>
+              <select
+                className={`${inputClass()} mt-1`}
+                value={form.equipe_id || ""}
+                onChange={(e) =>
+                  setForm({ ...form, equipe_id: Number(e.target.value) })
+                }
+                required
+              >
+                <option value="">Selecione</option>
+                {equipesAtivas.map((eq) => (
+                  <option key={eq.id} value={eq.id}>
+                    Equipe {eq.numero}
+                    {eq.nome ? ` — ${eq.nome}` : ""} ({eq.agentes_count}{" "}
+                    agente{eq.agentes_count === 1 ? "" : "s"})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Link
+              href="/cadastros/equipes"
+              className="rounded border border-shell-accent/50 bg-shell-accentBlue px-3 py-2 text-xs font-semibold text-shell-text"
             >
-              <option value="">Selecione</option>
-              {autoridadesFiltradas.map((a) => (
-                <option key={String(a.id)} value={String(a.id)}>
-                  {String(a.nome)}
-                  {a.matricula ? ` (${String(a.matricula)})` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm md:col-span-2">
-            <span className="text-shell-muted">Escrivão</span>
-            <select
-              className={`${inputClass()} mt-1`}
-              value={form.escrivao_id || ""}
-              onChange={(e) =>
-                setForm({ ...form, escrivao_id: Number(e.target.value) })
-              }
-              required
-            >
-              <option value="">Selecione</option>
-              {escrivaosFiltrados.map((x) => (
-                <option key={String(x.id)} value={String(x.id)}>
-                  {String(x.nome)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm">
-            <span className="text-shell-muted">Tipo de procedimento</span>
-            <select
-              className={`${inputClass()} mt-1`}
-              value={form.tipo_procedimento_id || ""}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  tipo_procedimento_id: Number(e.target.value),
-                })
-              }
-              required
-            >
-              <option value="">Selecione</option>
-              {tipos.map((t) => (
-                <option key={String(t.id)} value={String(t.id)}>
-                  {String(t.nome)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm">
-            <span className="text-shell-muted">Número do procedimento</span>
-            <input
-              className={`${inputClass()} mt-1`}
-              value={form.procedimento_numero}
-              onChange={(e) =>
-                setForm({ ...form, procedimento_numero: e.target.value })
-              }
-              required
-            />
-          </label>
-          <label className="text-sm md:col-span-2">
-            <span className="text-shell-muted">Fundamento legal</span>
-            <textarea
-              className={`${inputClass()} mt-1 min-h-28`}
-              value={form.fundamento_legal}
-              onChange={(e) =>
-                setForm({ ...form, fundamento_legal: e.target.value })
-              }
-              required
-            />
-          </label>
+              Gerenciar equipes
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <label className="text-sm">
+              <span className="text-shell-muted">
+                Autoridade policial (delegado da equipe)
+              </span>
+              <input
+                className={`${readonlyClass()} mt-1`}
+                value={
+                  equipeSelecionada
+                    ? `${equipeSelecionada.delegado_nome ?? "—"}${
+                        equipeSelecionada.delegado_matricula
+                          ? ` (${equipeSelecionada.delegado_matricula})`
+                          : ""
+                      }`
+                    : "Selecione uma equipe"
+                }
+                readOnly
+              />
+            </label>
+            <label className="text-sm">
+              <span className="text-shell-muted">Escrivão (da equipe)</span>
+              <input
+                className={`${readonlyClass()} mt-1`}
+                value={
+                  equipeSelecionada
+                    ? equipeSelecionada.escrivao_nome ?? "—"
+                    : "Selecione uma equipe"
+                }
+                readOnly
+              />
+            </label>
+            <label className="text-sm">
+              <span className="text-shell-muted">Tipo de procedimento</span>
+              <select
+                className={`${inputClass()} mt-1`}
+                value={form.tipo_procedimento_id || ""}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    tipo_procedimento_id: Number(e.target.value),
+                  })
+                }
+                required
+              >
+                <option value="">Selecione</option>
+                {tipos.map((t) => (
+                  <option key={String(t.id)} value={String(t.id)}>
+                    {String(t.nome)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm">
+              <span className="text-shell-muted">Número do procedimento</span>
+              <input
+                className={`${inputClass()} mt-1`}
+                value={form.procedimento_numero}
+                onChange={(e) =>
+                  setForm({ ...form, procedimento_numero: e.target.value })
+                }
+                required
+              />
+            </label>
+            <label className="text-sm md:col-span-2">
+              <span className="text-shell-muted">Fundamento legal</span>
+              <textarea
+                className={`${inputClass()} mt-1 min-h-28`}
+                value={form.fundamento_legal}
+                onChange={(e) =>
+                  setForm({ ...form, fundamento_legal: e.target.value })
+                }
+                required
+              />
+            </label>
+          </div>
+
+          <div className="rounded border border-shell-border p-3">
+            <p className="mb-2 text-xs uppercase tracking-[0.1em] text-shell-muted">
+              Agentes integrantes da equipe selecionada
+            </p>
+            {form.equipe_id === 0 ? (
+              <p className="text-sm text-shell-muted">
+                Selecione uma equipe para visualizar seus agentes.
+              </p>
+            ) : agentesPreview.length === 0 ? (
+              <p className="text-sm text-shell-muted">
+                Nenhum agente vinculado a esta equipe.
+              </p>
+            ) : (
+              <ul className="list-disc space-y-1 pl-5 text-sm text-shell-text">
+                {agentesPreview.map((m) => (
+                  <li key={m.id}>
+                    {m.nome} — {m.matricula}
+                    {m.funcao_padrao ? ` (${m.funcao_padrao})` : ""}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>,
       )}
 
@@ -473,72 +470,6 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
               required
             />
           </label>
-        </div>,
-      )}
-
-      {section(
-        "Equipe operacional (cadastro)",
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <input
-              className={inputClass()}
-              placeholder="Buscar por nome ou matrícula"
-              value={membroSearch}
-              onChange={(e) => setMembroSearch(e.target.value)}
-              style={{ maxWidth: 320 }}
-            />
-            <Link
-              href="/cadastros/membros-equipe"
-              className="rounded border border-shell-accent/50 bg-shell-accentBlue px-3 py-2 text-xs font-semibold text-shell-text"
-            >
-              Cadastrar membro
-            </Link>
-          </div>
-
-          {funcoesDisponiveis.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {funcoesDisponiveis.map((funcao) => {
-                const active = funcoesSelecionadas.includes(funcao);
-                return (
-                  <button
-                    key={funcao}
-                    type="button"
-                    onClick={() => toggleFuncao(funcao)}
-                    className={`rounded border px-2 py-1 text-xs ${
-                      active
-                        ? "border-shell-accent/60 bg-shell-accentBlue text-shell-text"
-                        : "border-shell-border text-shell-muted"
-                    }`}
-                  >
-                    {funcao}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-
-          <div className="max-h-56 space-y-2 overflow-y-auto rounded border border-shell-border p-3">
-            {membrosFiltrados.map((m) => (
-              <label key={String(m.id)} className="flex items-center gap-2 text-sm text-shell-text">
-                <input
-                  type="checkbox"
-                  checked={form.membro_ids.includes(Number(m.id))}
-                  onChange={() => toggleMembro(Number(m.id))}
-                />
-                {String(m.nome)} — {String(m.matricula)}
-                {m.funcao_padrao ? ` (${String(m.funcao_padrao)})` : ""}
-              </label>
-            ))}
-            {membros.length === 0 ? (
-              <p className="text-shell-muted">
-                Nenhum membro cadastrado. Use o botão acima para cadastrar em Cadastros auxiliares.
-              </p>
-            ) : membrosFiltrados.length === 0 ? (
-              <p className="text-shell-muted">
-                Nenhum membro encontrado para os filtros selecionados.
-              </p>
-            ) : null}
-          </div>
         </div>,
       )}
 
@@ -655,25 +586,6 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
       {section(
         "Encerramento",
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <label className="text-sm md:col-span-2">
-            <span className="text-shell-muted">Condutor da operação</span>
-            <select
-              className={`${inputClass()} mt-1`}
-              value={form.condutor_id || ""}
-              onChange={(e) =>
-                setForm({ ...form, condutor_id: Number(e.target.value) })
-              }
-              required
-            >
-              <option value="">Selecione</option>
-              {condutores.map((c) => (
-                <option key={String(c.id)} value={String(c.id)}>
-                  {String(c.nome)}
-                  {c.matricula ? ` (${String(c.matricula)})` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
           <label className="text-sm md:col-span-2">
             <span className="text-shell-muted">Nome na linha de assinatura</span>
             <input

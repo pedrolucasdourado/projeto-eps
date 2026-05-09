@@ -9,10 +9,3 @@ CREATE TABLE users (
 
 CREATE INDEX idx_users_email ON users (email);
 
--- Credenciais de teste: admin@admin.com / admin123 (bcrypt)
-INSERT INTO users (email, password_hash, full_name)
-VALUES (
-    'admin@admin.com',
-    '$2b$12$Ho9gEOM6XwD1RmWkuHrXf.kj.Fp1fM/7IMfjUYxnfIsFm3MV9vvcG',
-    'Administrador'
-);

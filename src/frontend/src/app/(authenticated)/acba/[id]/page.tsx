@@ -144,11 +144,11 @@ export default function AcbaDetailPage() {
             {new Date(record.data_lavratura).toLocaleDateString("pt-BR")}{" "}
             {record.hora_lavratura?.slice(0, 5) ?? ""}
           </p>
-          <p className="mt-2 text-shell-text">{record.autoridade_nome}</p>
-          <p className="text-shell-muted">Escrivão: {record.escrivao_nome}</p>
-          <p className="mt-2 text-shell-muted">
-            Condutor: {record.condutor_nome}
+          <p className="mt-2 text-shell-text">
+            Delegado: {record.delegado_nome}
+            {record.delegado_matricula ? ` (${record.delegado_matricula})` : ""}
           </p>
+          <p className="text-shell-muted">Escrivão: {record.escrivao_nome}</p>
         </div>
         <div className="rounded-xl border border-shell-border bg-shell-surface p-5 md:col-span-2">
           <p className="text-xs uppercase tracking-[0.1em] text-shell-muted">Local</p>
@@ -166,17 +166,40 @@ export default function AcbaDetailPage() {
           </p>
         </div>
         <div className="rounded-xl border border-shell-border bg-shell-surface p-5 md:col-span-2">
-          <p className="text-xs uppercase tracking-[0.1em] text-shell-muted">
-            Equipe operacional
-          </p>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-shell-text">
-            {(record.membros_equipe ?? []).map((m) => (
-              <li key={m.id}>
-                {m.nome} — {m.matricula}
-                {m.funcao_padrao ? ` — ${m.funcao_padrao}` : ""}
-              </li>
-            ))}
-          </ul>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs uppercase tracking-[0.1em] text-shell-muted">
+              Equipe operacional —{" "}
+              <span className="font-mono normal-case tracking-normal text-shell-text">
+                {record.equipe_numero}
+              </span>
+              {record.equipe_nome ? (
+                <span className="normal-case tracking-normal text-shell-text">
+                  {" "}
+                  ({record.equipe_nome})
+                </span>
+              ) : null}
+            </p>
+            <Link
+              href={`/cadastros/equipes/${record.equipe_id}/agentes`}
+              className="rounded border border-shell-border px-2 py-1 text-xs text-shell-text hover:border-shell-accent hover:text-shell-accent"
+            >
+              Gerenciar equipe
+            </Link>
+          </div>
+          {record.agentes_equipe && record.agentes_equipe.length > 0 ? (
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-shell-text">
+              {record.agentes_equipe.map((m) => (
+                <li key={m.id}>
+                  {m.nome} — {m.matricula}
+                  {m.funcao_padrao ? ` — ${m.funcao_padrao}` : ""}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-sm text-shell-muted">
+              Nenhum agente vinculado a esta equipe.
+            </p>
+          )}
         </div>
         <div className="rounded-xl border border-shell-border bg-shell-surface p-5 md:col-span-2">
           <p className="text-xs uppercase tracking-[0.1em] text-shell-muted">

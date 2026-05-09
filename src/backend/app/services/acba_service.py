@@ -10,13 +10,9 @@ class AcbaService:
         self.repository = AcbaRepository()
 
     def create(self, payload: AcbaCreate, created_by_user_id: int) -> AcbaDetail:
-        body = payload.model_dump(exclude={"membro_ids"})
+        body = payload.model_dump()
         try:
-            row = self.repository.create(
-                body,
-                payload.membro_ids,
-                created_by_user_id,
-            )
+            row = self.repository.create(body, created_by_user_id)
         except Exception as exc:
             if isinstance(exc, Error) and exc.pgcode == "23505":
                 raise HTTPException(
@@ -40,9 +36,9 @@ class AcbaService:
         return AcbaDetail.model_validate(row)
 
     def update(self, record_id: int, payload: AcbaUpdate) -> AcbaDetail:
-        body = payload.model_dump(exclude={"membro_ids"})
+        body = payload.model_dump()
         try:
-            row = self.repository.update(record_id, body, payload.membro_ids)
+            row = self.repository.update(record_id, body)
         except Exception as exc:
             if isinstance(exc, Error) and exc.pgcode == "23505":
                 raise HTTPException(

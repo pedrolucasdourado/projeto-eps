@@ -5,24 +5,37 @@ from psycopg2.extras import Json
 from app.db import execute_query, fetch_all, fetch_one
 
 
+_ACBA_JOIN_BLOCK = """
+    FROM acba_records a
+    JOIN unidades_responsaveis u ON u.id = a.unidade_id
+    JOIN delegacias d ON d.id = a.delegacia_id
+    JOIN cidades c ON c.id = a.cidade_id
+    JOIN ufs uf ON uf.id = c.uf_id
+    JOIN tipos_procedimento tp ON tp.id = a.tipo_procedimento_id
+    JOIN equipes_operacionais eq ON eq.id = a.equipe_id
+    JOIN delegados dl ON dl.id = eq.delegado_id
+    JOIN escrivaos es ON es.id = eq.escrivao_id
+"""
+
+
 class AcbaRepository:
-    def create(self, row: dict[str, Any], membro_ids: list[int], created_by_user_id: int) -> dict:
+    def create(self, row: dict[str, Any], created_by_user_id: int) -> dict:
         inserted = fetch_one(
             """
             INSERT INTO acba_records (
                 numero_auto, unidade_id, delegacia_id, cidade_id,
                 data_lavratura, hora_lavratura,
-                autoridade_id, escrivao_id, tipo_procedimento_id,
+                tipo_procedimento_id,
                 procedimento_numero, fundamento_legal, endereco_busca, alvo_busca,
-                condutor_id, assinatura_responsavel, observacoes,
-                testemunhas, objetos_arrecadados, created_by_user_id
+                assinatura_responsavel, observacoes,
+                equipe_id, testemunhas, objetos_arrecadados, created_by_user_id
             ) VALUES (
                 %(numero_auto)s, %(unidade_id)s, %(delegacia_id)s, %(cidade_id)s,
                 %(data_lavratura)s, %(hora_lavratura)s,
-                %(autoridade_id)s, %(escrivao_id)s, %(tipo_procedimento_id)s,
+                %(tipo_procedimento_id)s,
                 %(procedimento_numero)s, %(fundamento_legal)s, %(endereco_busca)s, %(alvo_busca)s,
-                %(condutor_id)s, %(assinatura_responsavel)s, %(observacoes)s,
-                %(testemunhas)s, %(objetos_arrecadados)s, %(created_by_user_id)s
+                %(assinatura_responsavel)s, %(observacoes)s,
+                %(equipe_id)s, %(testemunhas)s, %(objetos_arrecadados)s, %(created_by_user_id)s
             )
             RETURNING id
             """,
@@ -35,33 +48,13 @@ class AcbaRepository:
         )
         if inserted is None:
             raise RuntimeError("Falha ao inserir ACBA.")
-        acba_id = inserted["id"]
-        self._sync_equipe(acba_id, membro_ids)
-        detail = self.get_by_id(acba_id)
+        detail = self.get_by_id(inserted["id"])
         assert detail is not None
         return detail
 
-    def _sync_equipe(self, acba_id: int, membro_ids: list[int]) -> None:
-        execute_query(
-            "DELETE FROM acba_equipe_membros WHERE acba_id = %s", (acba_id,)
-        )
-        seen: set[int] = set()
-        for mid in membro_ids:
-            if mid in seen:
-                continue
-            seen.add(mid)
-            execute_query(
-                """
-                INSERT INTO acba_equipe_membros (acba_id, membro_id)
-                VALUES (%s, %s)
-                ON CONFLICT (acba_id, membro_id) DO NOTHING
-                """,
-                (acba_id, mid),
-            )
-
     def list_all(self) -> list[dict]:
         return fetch_all(
-            """
+            f"""
             SELECT
                 a.id,
                 a.numero_auto,
@@ -69,17 +62,17 @@ class AcbaRepository:
                 a.alvo_busca,
                 a.created_at,
                 d.nome AS delegacia_nome,
-                ap.nome AS autoridade_nome
-            FROM acba_records a
-            JOIN delegacias d ON d.id = a.delegacia_id
-            JOIN autoridades_policiais ap ON ap.id = a.autoridade_id
+                dl.nome AS delegado_nome,
+                eq.numero AS equipe_numero,
+                eq.nome AS equipe_nome
+            {_ACBA_JOIN_BLOCK}
             ORDER BY a.created_at DESC
             """
         )
 
     def get_by_id(self, record_id: int) -> dict | None:
         row = fetch_one(
-            """
+            f"""
             SELECT
                 a.*,
                 u.nome AS unidade_nome,
@@ -87,42 +80,35 @@ class AcbaRepository:
                 c.nome AS cidade_nome,
                 uf.sigla AS uf_sigla,
                 uf.nome AS uf_nome,
-                ap.nome AS autoridade_nome,
-                ap.matricula AS autoridade_matricula,
-                e.nome AS escrivao_nome,
                 tp.nome AS tipo_procedimento_nome,
-                co.nome AS condutor_nome,
-                co.matricula AS condutor_matricula
-            FROM acba_records a
-            JOIN unidades_responsaveis u ON u.id = a.unidade_id
-            JOIN delegacias d ON d.id = a.delegacia_id
-            JOIN cidades c ON c.id = a.cidade_id
-            JOIN ufs uf ON uf.id = c.uf_id
-            JOIN autoridades_policiais ap ON ap.id = a.autoridade_id
-            JOIN escrivaos e ON e.id = a.escrivao_id
-            JOIN tipos_procedimento tp ON tp.id = a.tipo_procedimento_id
-            JOIN condutores_operacao co ON co.id = a.condutor_id
+                eq.numero AS equipe_numero,
+                eq.nome AS equipe_nome,
+                eq.delegado_id AS delegado_id,
+                eq.escrivao_id AS escrivao_id,
+                dl.nome AS delegado_nome,
+                dl.matricula AS delegado_matricula,
+                es.nome AS escrivao_nome
+            {_ACBA_JOIN_BLOCK}
             WHERE a.id = %s
             """,
             (record_id,),
         )
         if not row:
             return None
-        membros = fetch_all(
+        agentes = fetch_all(
             """
-            SELECT m.id, m.nome, m.matricula, m.funcao_padrao
-            FROM acba_equipe_membros x
-            JOIN membros_equipe_operacional m ON m.id = x.membro_id
-            WHERE x.acba_id = %s
-            ORDER BY m.nome
+            SELECT a.id, a.nome, a.matricula, a.funcao_padrao
+            FROM equipe_operacional_membros em
+            JOIN agentes a ON a.id = em.agente_id
+            WHERE em.equipe_id = %s
+            ORDER BY a.nome
             """,
-            (record_id,),
+            (row["equipe_id"],),
         )
-        row["membro_ids"] = [m["id"] for m in membros]
-        row["membros_equipe"] = membros
+        row["agentes_equipe"] = agentes
         return row
 
-    def update(self, record_id: int, row: dict[str, Any], membro_ids: list[int]) -> dict | None:
+    def update(self, record_id: int, row: dict[str, Any]) -> dict | None:
         updated = fetch_one(
             """
             UPDATE acba_records SET
@@ -132,16 +118,14 @@ class AcbaRepository:
                 cidade_id = %(cidade_id)s,
                 data_lavratura = %(data_lavratura)s,
                 hora_lavratura = %(hora_lavratura)s,
-                autoridade_id = %(autoridade_id)s,
-                escrivao_id = %(escrivao_id)s,
                 tipo_procedimento_id = %(tipo_procedimento_id)s,
                 procedimento_numero = %(procedimento_numero)s,
                 fundamento_legal = %(fundamento_legal)s,
                 endereco_busca = %(endereco_busca)s,
                 alvo_busca = %(alvo_busca)s,
-                condutor_id = %(condutor_id)s,
                 assinatura_responsavel = %(assinatura_responsavel)s,
                 observacoes = %(observacoes)s,
+                equipe_id = %(equipe_id)s,
                 testemunhas = %(testemunhas)s,
                 objetos_arrecadados = %(objetos_arrecadados)s,
                 updated_at = CURRENT_TIMESTAMP
@@ -157,7 +141,6 @@ class AcbaRepository:
         )
         if not updated:
             return None
-        self._sync_equipe(record_id, membro_ids)
         return self.get_by_id(record_id)
 
     def delete(self, record_id: int) -> None:

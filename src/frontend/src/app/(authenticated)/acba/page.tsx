@@ -50,20 +50,21 @@ export default function AcbaListPage() {
               <th className="px-4 py-3">Delegacia</th>
               <th className="px-4 py-3">Data</th>
               <th className="px-4 py-3">Alvo</th>
-              <th className="px-4 py-3">Autoridade</th>
+              <th className="px-4 py-3">Delegado</th>
+              <th className="px-4 py-3">Equipe</th>
               <th className="px-4 py-3">Ações</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td className="px-4 py-6 text-shell-muted" colSpan={6}>
+                <td className="px-4 py-6 text-shell-muted" colSpan={7}>
                   Carregando registros...
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td className="px-4 py-6 text-shell-muted" colSpan={6}>
+                <td className="px-4 py-6 text-shell-muted" colSpan={7}>
                   Nenhum registro encontrado.
                 </td>
               </tr>
@@ -76,7 +77,11 @@ export default function AcbaListPage() {
                     {new Date(item.data_lavratura).toLocaleDateString("pt-BR")}
                   </td>
                   <td className="px-4 py-3 text-shell-text">{item.alvo_busca}</td>
-                  <td className="px-4 py-3 text-shell-text">{item.autoridade_nome}</td>
+                  <td className="px-4 py-3 text-shell-text">{item.delegado_nome}</td>
+                  <td className="px-4 py-3 text-shell-text">
+                    <span className="font-mono">{item.equipe_numero}</span>
+                    {item.equipe_nome ? ` — ${item.equipe_nome}` : ""}
+                  </td>
                   <td className="px-4 py-3">
                     <Link
                       href={`/acba/${item.id}`}

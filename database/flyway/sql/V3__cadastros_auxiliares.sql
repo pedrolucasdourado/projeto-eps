@@ -88,15 +88,3 @@ CREATE TABLE condutores_operacao (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Seed obrigatório: DF + Brasília
-INSERT INTO ufs (sigla, nome) VALUES ('DF', 'Distrito Federal');
-
-INSERT INTO cidades (nome, uf_id)
-SELECT 'Brasília', id FROM ufs WHERE sigla = 'DF';
-
--- Exemplos claramente genéricos (opcional)
-INSERT INTO tipos_procedimento (nome)
-VALUES ('Tipo genérico — substituir pelo cadastro oficial');
-
-INSERT INTO unidades_responsaveis (nome)
-VALUES ('Unidade genérica — cadastrar dados reais');

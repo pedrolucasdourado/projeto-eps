@@ -17,18 +17,20 @@ const cadastroSlugOrder = [
   "delegacias",
   "cidades",
   "ufs",
-  "autoridades",
+  "delegados",
   "escrivaos",
+  "agentes",
   "tipos-procedimento",
-  "membros-equipe",
-  "condutores",
 ] as const satisfies readonly (keyof typeof CADASTROS)[];
 
-const cadastroLinks = cadastroSlugOrder.map((slug) => ({
-  slug,
-  href: `/cadastros/${slug}`,
-  label: CADASTROS[slug].title,
-}));
+const cadastroLinks = [
+  ...cadastroSlugOrder.map((slug) => ({
+    slug,
+    href: `/cadastros/${slug}`,
+    label: CADASTROS[slug].title,
+  })),
+  { slug: "equipes", href: "/cadastros/equipes", label: "Equipes operacionais" },
+];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

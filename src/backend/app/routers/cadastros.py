@@ -7,24 +7,26 @@ from app.repositories import catalog_repo
 from app.routers.auth import get_authenticated_user
 from app.schemas import UserPublic
 from app.schemas.catalog import (
-    AutoridadeCreate,
-    AutoridadeRead,
-    AutoridadeUpdate,
+    AgenteCreate,
+    AgenteRead,
+    AgenteUpdate,
     CidadeCreate,
     CidadeRead,
     CidadeUpdate,
-    CondutorCreate,
-    CondutorRead,
-    CondutorUpdate,
     DelegaciaCreate,
     DelegaciaRead,
     DelegaciaUpdate,
+    DelegadoCreate,
+    DelegadoRead,
+    DelegadoUpdate,
+    EquipeAcbaItem,
+    EquipeAgentesUpdate,
+    EquipeOperacionalCreate,
+    EquipeOperacionalRead,
+    EquipeOperacionalUpdate,
     EscrivaoCreate,
     EscrivaoRead,
     EscrivaoUpdate,
-    MembroEquipeCreate,
-    MembroEquipeRead,
-    MembroEquipeUpdate,
     TipoProcedimentoCreate,
     TipoProcedimentoRead,
     TipoProcedimentoUpdate,
@@ -326,58 +328,58 @@ def delete_tipo(tipo_id: int, *, _user: UserPublic = Depends(get_authenticated_u
         _raise_pg(exc)
 
 
-# --- Autoridades ---
+# --- Delegados ---
 
 
-@router.get("/autoridades", response_model=list[AutoridadeRead])
-def list_autoridades(
+@router.get("/delegados", response_model=list[DelegadoRead])
+def list_delegados(
     q: str | None = Query(None),
     delegacia_id: int | None = Query(None),
     unidade_id: int | None = Query(None),
     _user: UserPublic = Depends(get_authenticated_user),
-) -> list[AutoridadeRead]:
-    rows = catalog_repo.list_autoridades(q=q, delegacia_id=delegacia_id, unidade_id=unidade_id)
-    return [AutoridadeRead.model_validate(r) for r in rows]
+) -> list[DelegadoRead]:
+    rows = catalog_repo.list_delegados(q=q, delegacia_id=delegacia_id, unidade_id=unidade_id)
+    return [DelegadoRead.model_validate(r) for r in rows]
 
 
-@router.post("/autoridades", response_model=AutoridadeRead, status_code=status.HTTP_201_CREATED)
-def create_autoridade(body: AutoridadeCreate, *, _user: UserPublic = Depends(get_authenticated_user)) -> AutoridadeRead:
-    row = catalog_repo.insert_autoridade(body.model_dump())
-    return AutoridadeRead.model_validate(row)
+@router.post("/delegados", response_model=DelegadoRead, status_code=status.HTTP_201_CREATED)
+def create_delegado(body: DelegadoCreate, *, _user: UserPublic = Depends(get_authenticated_user)) -> DelegadoRead:
+    row = catalog_repo.insert_delegado(body.model_dump())
+    return DelegadoRead.model_validate(row)
 
 
-@router.get("/autoridades/{autoridade_id}", response_model=AutoridadeRead)
-def get_autoridade(autoridade_id: int, *, _user: UserPublic = Depends(get_authenticated_user)) -> AutoridadeRead:
-    row = catalog_repo.get_autoridade(autoridade_id)
+@router.get("/delegados/{delegado_id}", response_model=DelegadoRead)
+def get_delegado(delegado_id: int, *, _user: UserPublic = Depends(get_authenticated_user)) -> DelegadoRead:
+    row = catalog_repo.get_delegado(delegado_id)
     if not row:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Autoridade não encontrada.")
-    return AutoridadeRead.model_validate(row)
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Delegado não encontrado.")
+    return DelegadoRead.model_validate(row)
 
 
-@router.put("/autoridades/{autoridade_id}", response_model=AutoridadeRead)
-def update_autoridade(
-    autoridade_id: int,
-    body: AutoridadeUpdate,
+@router.put("/delegados/{delegado_id}", response_model=DelegadoRead)
+def update_delegado(
+    delegado_id: int,
+    body: DelegadoUpdate,
     *,
     _user: UserPublic = Depends(get_authenticated_user),
-) -> AutoridadeRead:
-    row = catalog_repo.get_autoridade(autoridade_id)
+) -> DelegadoRead:
+    row = catalog_repo.get_delegado(delegado_id)
     if not row:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Autoridade não encontrada.")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Delegado não encontrado.")
     merged = _merge(
         ("nome", "matricula", "delegacia_id", "unidade_id", "ativo"),
         row,
         body.model_dump(exclude_unset=True),
     )
-    updated = catalog_repo.update_autoridade(autoridade_id, merged)
+    updated = catalog_repo.update_delegado(delegado_id, merged)
     assert updated is not None
-    return AutoridadeRead.model_validate(updated)
+    return DelegadoRead.model_validate(updated)
 
 
-@router.delete("/autoridades/{autoridade_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_autoridade(autoridade_id: int, *, _user: UserPublic = Depends(get_authenticated_user)) -> None:
+@router.delete("/delegados/{delegado_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_delegado(delegado_id: int, *, _user: UserPublic = Depends(get_authenticated_user)) -> None:
     try:
-        catalog_repo.delete_autoridade(autoridade_id)
+        catalog_repo.delete_delegado(delegado_id)
     except PsycopgError as exc:
         _raise_pg(exc)
 
@@ -434,101 +436,171 @@ def delete_escrivao_route(escrivao_id: int, *, _user: UserPublic = Depends(get_a
         _raise_pg(exc)
 
 
-# --- Membros equipe ---
+# --- Agentes (cadastro de policiais operacionais) ---
 
 
-@router.get("/membros-equipe", response_model=list[MembroEquipeRead])
-def list_membros(q: str | None = Query(None), _user: UserPublic = Depends(get_authenticated_user)) -> list[MembroEquipeRead]:
-    rows = catalog_repo.list_membros_equipe(q)
-    return [MembroEquipeRead.model_validate(r) for r in rows]
+@router.get("/agentes", response_model=list[AgenteRead])
+def list_agentes(q: str | None = Query(None), _user: UserPublic = Depends(get_authenticated_user)) -> list[AgenteRead]:
+    rows = catalog_repo.list_agentes(q)
+    return [AgenteRead.model_validate(r) for r in rows]
 
 
-@router.post("/membros-equipe", response_model=MembroEquipeRead, status_code=status.HTTP_201_CREATED)
-def create_membro(body: MembroEquipeCreate, *, _user: UserPublic = Depends(get_authenticated_user)) -> MembroEquipeRead:
+@router.post("/agentes", response_model=AgenteRead, status_code=status.HTTP_201_CREATED)
+def create_agente(body: AgenteCreate, *, _user: UserPublic = Depends(get_authenticated_user)) -> AgenteRead:
     try:
-        row = catalog_repo.insert_membro_equipe(body.model_dump())
+        row = catalog_repo.insert_agente(body.model_dump())
     except PsycopgError as exc:
         _raise_pg(exc)
-    return MembroEquipeRead.model_validate(row)
+    return AgenteRead.model_validate(row)
 
 
-@router.get("/membros-equipe/{membro_id}", response_model=MembroEquipeRead)
-def get_membro(membro_id: int, *, _user: UserPublic = Depends(get_authenticated_user)) -> MembroEquipeRead:
-    row = catalog_repo.get_membro_equipe(membro_id)
+@router.get("/agentes/{agente_id}", response_model=AgenteRead)
+def get_agente(agente_id: int, *, _user: UserPublic = Depends(get_authenticated_user)) -> AgenteRead:
+    row = catalog_repo.get_agente(agente_id)
     if not row:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Membro não encontrado.")
-    return MembroEquipeRead.model_validate(row)
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Agente não encontrado.")
+    return AgenteRead.model_validate(row)
 
 
-@router.put("/membros-equipe/{membro_id}", response_model=MembroEquipeRead)
-def update_membro(
-    membro_id: int,
-    body: MembroEquipeUpdate,
+@router.put("/agentes/{agente_id}", response_model=AgenteRead)
+def update_agente(
+    agente_id: int,
+    body: AgenteUpdate,
     *,
     _user: UserPublic = Depends(get_authenticated_user),
-) -> MembroEquipeRead:
-    row = catalog_repo.get_membro_equipe(membro_id)
+) -> AgenteRead:
+    row = catalog_repo.get_agente(agente_id)
     if not row:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Membro não encontrado.")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Agente não encontrado.")
     merged = _merge(("nome", "matricula", "funcao_padrao", "ativo"), row, body.model_dump(exclude_unset=True))
     try:
-        updated = catalog_repo.update_membro_equipe(membro_id, merged)
+        updated = catalog_repo.update_agente(agente_id, merged)
     except PsycopgError as exc:
         _raise_pg(exc)
     assert updated is not None
-    return MembroEquipeRead.model_validate(updated)
+    return AgenteRead.model_validate(updated)
 
 
-@router.delete("/membros-equipe/{membro_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_membro(membro_id: int, *, _user: UserPublic = Depends(get_authenticated_user)) -> None:
+@router.delete("/agentes/{agente_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_agente(agente_id: int, *, _user: UserPublic = Depends(get_authenticated_user)) -> None:
     try:
-        catalog_repo.delete_membro_equipe(membro_id)
+        catalog_repo.delete_agente(agente_id)
     except PsycopgError as exc:
         _raise_pg(exc)
 
 
-# --- Condutores ---
+# --- Equipes operacionais ---
 
 
-@router.get("/condutores", response_model=list[CondutorRead])
-def list_condutores_route(q: str | None = Query(None), _user: UserPublic = Depends(get_authenticated_user)) -> list[CondutorRead]:
-    rows = catalog_repo.list_condutores(q)
-    return [CondutorRead.model_validate(r) for r in rows]
+@router.get("/equipes", response_model=list[EquipeOperacionalRead])
+def list_equipes(
+    q: str | None = Query(None),
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> list[EquipeOperacionalRead]:
+    rows = catalog_repo.list_equipes(q)
+    return [EquipeOperacionalRead.model_validate(r) for r in rows]
 
 
-@router.post("/condutores", response_model=CondutorRead, status_code=status.HTTP_201_CREATED)
-def create_condutor(body: CondutorCreate, *, _user: UserPublic = Depends(get_authenticated_user)) -> CondutorRead:
-    row = catalog_repo.insert_condutor(body.model_dump())
-    return CondutorRead.model_validate(row)
-
-
-@router.get("/condutores/{condutor_id}", response_model=CondutorRead)
-def get_condutor_route(condutor_id: int, *, _user: UserPublic = Depends(get_authenticated_user)) -> CondutorRead:
-    row = catalog_repo.get_condutor(condutor_id)
-    if not row:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Condutor não encontrado.")
-    return CondutorRead.model_validate(row)
-
-
-@router.put("/condutores/{condutor_id}", response_model=CondutorRead)
-def update_condutor_route(
-    condutor_id: int,
-    body: CondutorUpdate,
+@router.post(
+    "/equipes",
+    response_model=EquipeOperacionalRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_equipe(
+    body: EquipeOperacionalCreate,
     *,
     _user: UserPublic = Depends(get_authenticated_user),
-) -> CondutorRead:
-    row = catalog_repo.get_condutor(condutor_id)
-    if not row:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Condutor não encontrado.")
-    merged = _merge(("nome", "matricula", "ativo"), row, body.model_dump(exclude_unset=True))
-    updated = catalog_repo.update_condutor(condutor_id, merged)
-    assert updated is not None
-    return CondutorRead.model_validate(updated)
-
-
-@router.delete("/condutores/{condutor_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_condutor_route(condutor_id: int, *, _user: UserPublic = Depends(get_authenticated_user)) -> None:
+) -> EquipeOperacionalRead:
     try:
-        catalog_repo.delete_condutor(condutor_id)
+        row = catalog_repo.insert_equipe(body.model_dump())
     except PsycopgError as exc:
         _raise_pg(exc)
+    return EquipeOperacionalRead.model_validate(row)
+
+
+@router.get("/equipes/{equipe_id}", response_model=EquipeOperacionalRead)
+def get_equipe(
+    equipe_id: int,
+    *,
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> EquipeOperacionalRead:
+    row = catalog_repo.get_equipe(equipe_id)
+    if not row:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Equipe não encontrada.")
+    return EquipeOperacionalRead.model_validate(row)
+
+
+@router.put("/equipes/{equipe_id}", response_model=EquipeOperacionalRead)
+def update_equipe(
+    equipe_id: int,
+    body: EquipeOperacionalUpdate,
+    *,
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> EquipeOperacionalRead:
+    row = catalog_repo.get_equipe(equipe_id)
+    if not row:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Equipe não encontrada.")
+    merged = _merge(
+        ("numero", "nome", "delegado_id", "escrivao_id", "ativo"),
+        row,
+        body.model_dump(exclude_unset=True),
+    )
+    try:
+        updated = catalog_repo.update_equipe(equipe_id, merged)
+    except PsycopgError as exc:
+        _raise_pg(exc)
+    assert updated is not None
+    return EquipeOperacionalRead.model_validate(updated)
+
+
+@router.delete("/equipes/{equipe_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_equipe(
+    equipe_id: int,
+    *,
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> None:
+    try:
+        catalog_repo.delete_equipe(equipe_id)
+    except PsycopgError as exc:
+        _raise_pg(exc)
+
+
+@router.get("/equipes/{equipe_id}/agentes", response_model=list[AgenteRead])
+def list_equipe_agentes(
+    equipe_id: int,
+    *,
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> list[AgenteRead]:
+    if not catalog_repo.get_equipe(equipe_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Equipe não encontrada.")
+    rows = catalog_repo.list_agentes_da_equipe(equipe_id)
+    return [AgenteRead.model_validate(r) for r in rows]
+
+
+@router.put("/equipes/{equipe_id}/agentes", response_model=list[AgenteRead])
+def set_equipe_agentes(
+    equipe_id: int,
+    body: EquipeAgentesUpdate,
+    *,
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> list[AgenteRead]:
+    if not catalog_repo.get_equipe(equipe_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Equipe não encontrada.")
+    try:
+        catalog_repo.set_agentes_da_equipe(equipe_id, body.agente_ids)
+    except PsycopgError as exc:
+        _raise_pg(exc)
+    rows = catalog_repo.list_agentes_da_equipe(equipe_id)
+    return [AgenteRead.model_validate(r) for r in rows]
+
+
+@router.get("/equipes/{equipe_id}/acbas", response_model=list[EquipeAcbaItem])
+def list_equipe_acbas(
+    equipe_id: int,
+    *,
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> list[EquipeAcbaItem]:
+    if not catalog_repo.get_equipe(equipe_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Equipe não encontrada.")
+    rows = catalog_repo.list_acbas_da_equipe(equipe_id)
+    return [EquipeAcbaItem.model_validate(r) for r in rows]

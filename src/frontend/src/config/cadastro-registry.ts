@@ -106,9 +106,9 @@ export const CADASTROS: Record<string, CadastroDefinition> = {
       { kind: "checkbox", name: "ativo", label: "Ativo" },
     ],
   },
-  autoridades: {
-    title: "Autoridades policiais",
-    apiPath: "/api/cadastros/autoridades",
+  delegados: {
+    title: "Delegados",
+    apiPath: "/api/cadastros/delegados",
     columns: [
       { key: "nome", label: "Nome" },
       { key: "matricula", label: "Matrícula" },
@@ -166,9 +166,9 @@ export const CADASTROS: Record<string, CadastroDefinition> = {
       { kind: "checkbox", name: "ativo", label: "Ativo" },
     ],
   },
-  "membros-equipe": {
-    title: "Membros da equipe operacional",
-    apiPath: "/api/cadastros/membros-equipe",
+  agentes: {
+    title: "Agentes",
+    apiPath: "/api/cadastros/agentes",
     columns: [
       { key: "nome", label: "Nome" },
       { key: "matricula", label: "Matrícula" },
@@ -179,20 +179,6 @@ export const CADASTROS: Record<string, CadastroDefinition> = {
       { kind: "text", name: "nome", label: "Nome", required: true },
       { kind: "text", name: "matricula", label: "Matrícula", required: true },
       { kind: "text", name: "funcao_padrao", label: "Função padrão" },
-      { kind: "checkbox", name: "ativo", label: "Ativo" },
-    ],
-  },
-  condutores: {
-    title: "Condutores de operações",
-    apiPath: "/api/cadastros/condutores",
-    columns: [
-      { key: "nome", label: "Nome" },
-      { key: "matricula", label: "Matrícula" },
-      { key: "ativo", label: "Ativo" },
-    ],
-    fields: [
-      { kind: "text", name: "nome", label: "Nome", required: true },
-      { kind: "text", name: "matricula", label: "Matrícula" },
       { kind: "checkbox", name: "ativo", label: "Ativo" },
     ],
   },

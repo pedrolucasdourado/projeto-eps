@@ -346,10 +346,10 @@ def delete_tipo_procedimento(tid: int) -> None:
     execute_query("DELETE FROM tipos_procedimento WHERE id = %s", (tid,))
 
 
-# --- Autoridades ---
+# --- Delegados ---
 
 
-def list_autoridades(
+def list_delegados(
     q: str | None = None,
     delegacia_id: int | None = None,
     unidade_id: int | None = None,
@@ -358,61 +358,61 @@ def list_autoridades(
     params: dict[str, Any] = {}
     where = ["1=1"]
     if delegacia_id is not None:
-        where.append("a.delegacia_id = %(delegacia_id)s")
+        where.append("d.delegacia_id = %(delegacia_id)s")
         params["delegacia_id"] = delegacia_id
     if unidade_id is not None:
-        where.append("a.unidade_id = %(unidade_id)s")
+        where.append("d.unidade_id = %(unidade_id)s")
         params["unidade_id"] = unidade_id
     if like:
         where.append(
-            "(a.nome ILIKE %(like)s OR COALESCE(a.matricula,'') ILIKE %(like)s)"
+            "(d.nome ILIKE %(like)s OR COALESCE(d.matricula,'') ILIKE %(like)s)"
         )
         params["like"] = like
     sql = f"""
-        SELECT a.id, a.nome, a.matricula, a.delegacia_id, a.unidade_id, a.ativo, a.created_at,
-               d.nome AS delegacia_nome,
+        SELECT d.id, d.nome, d.matricula, d.delegacia_id, d.unidade_id, d.ativo, d.created_at,
+               dl.nome AS delegacia_nome,
                u.nome AS unidade_nome
-        FROM autoridades_policiais a
-        LEFT JOIN delegacias d ON d.id = a.delegacia_id
-        LEFT JOIN unidades_responsaveis u ON u.id = a.unidade_id
+        FROM delegados d
+        LEFT JOIN delegacias dl ON dl.id = d.delegacia_id
+        LEFT JOIN unidades_responsaveis u ON u.id = d.unidade_id
         WHERE {' AND '.join(where)}
-        ORDER BY a.nome
+        ORDER BY d.nome
     """
     return fetch_all(sql, params)
 
 
-def get_autoridade(aid: int) -> dict | None:
+def get_delegado(did: int) -> dict | None:
     return fetch_one(
         """
-        SELECT a.id, a.nome, a.matricula, a.delegacia_id, a.unidade_id, a.ativo, a.created_at,
-               d.nome AS delegacia_nome,
+        SELECT d.id, d.nome, d.matricula, d.delegacia_id, d.unidade_id, d.ativo, d.created_at,
+               dl.nome AS delegacia_nome,
                u.nome AS unidade_nome
-        FROM autoridades_policiais a
-        LEFT JOIN delegacias d ON d.id = a.delegacia_id
-        LEFT JOIN unidades_responsaveis u ON u.id = a.unidade_id
-        WHERE a.id = %s
+        FROM delegados d
+        LEFT JOIN delegacias dl ON dl.id = d.delegacia_id
+        LEFT JOIN unidades_responsaveis u ON u.id = d.unidade_id
+        WHERE d.id = %s
         """,
-        (aid,),
+        (did,),
     )
 
 
-def insert_autoridade(data: dict[str, Any]) -> dict:
+def insert_delegado(data: dict[str, Any]) -> dict:
     row = fetch_one(
         """
-        INSERT INTO autoridades_policiais (nome, matricula, delegacia_id, unidade_id, ativo)
+        INSERT INTO delegados (nome, matricula, delegacia_id, unidade_id, ativo)
         VALUES (%(nome)s, %(matricula)s, %(delegacia_id)s, %(unidade_id)s, %(ativo)s)
         RETURNING id
         """,
         data,
     )
     assert row is not None
-    return get_autoridade(row["id"])  # type: ignore[return-value]
+    return get_delegado(row["id"])  # type: ignore[return-value]
 
 
-def update_autoridade(aid: int, data: dict[str, Any]) -> dict | None:
+def update_delegado(did: int, data: dict[str, Any]) -> dict | None:
     row = fetch_one(
         """
-        UPDATE autoridades_policiais
+        UPDATE delegados
         SET nome = %(nome)s,
             matricula = %(matricula)s,
             delegacia_id = %(delegacia_id)s,
@@ -421,15 +421,15 @@ def update_autoridade(aid: int, data: dict[str, Any]) -> dict | None:
         WHERE id = %(id)s
         RETURNING id
         """,
-        {**data, "id": aid},
+        {**data, "id": did},
     )
     if not row:
         return None
-    return get_autoridade(aid)
+    return get_delegado(did)
 
 
-def delete_autoridade(aid: int) -> None:
-    execute_query("DELETE FROM autoridades_policiais WHERE id = %s", (aid,))
+def delete_delegado(did: int) -> None:
+    execute_query("DELETE FROM delegados WHERE id = %s", (did,))
 
 
 # --- Escrivãos ---
@@ -515,16 +515,16 @@ def delete_escrivao(eid: int) -> None:
     execute_query("DELETE FROM escrivaos WHERE id = %s", (eid,))
 
 
-# --- Membros equipe ---
+# --- Agentes (membros operacionais) ---
 
 
-def list_membros_equipe(q: str | None = None) -> list[dict]:
+def list_agentes(q: str | None = None) -> list[dict]:
     like = _like(q)
     if like:
         return fetch_all(
             """
             SELECT id, nome, matricula, funcao_padrao, ativo, created_at
-            FROM membros_equipe_operacional
+            FROM agentes
             WHERE nome ILIKE %(like)s OR matricula ILIKE %(like)s
             ORDER BY nome
             """,
@@ -533,27 +533,27 @@ def list_membros_equipe(q: str | None = None) -> list[dict]:
     return fetch_all(
         """
         SELECT id, nome, matricula, funcao_padrao, ativo, created_at
-        FROM membros_equipe_operacional
+        FROM agentes
         ORDER BY nome
         """
     )
 
 
-def get_membro_equipe(mid: int) -> dict | None:
+def get_agente(aid: int) -> dict | None:
     return fetch_one(
         """
         SELECT id, nome, matricula, funcao_padrao, ativo, created_at
-        FROM membros_equipe_operacional
+        FROM agentes
         WHERE id = %s
         """,
-        (mid,),
+        (aid,),
     )
 
 
-def insert_membro_equipe(data: dict[str, Any]) -> dict:
+def insert_agente(data: dict[str, Any]) -> dict:
     row = fetch_one(
         """
-        INSERT INTO membros_equipe_operacional (nome, matricula, funcao_padrao, ativo)
+        INSERT INTO agentes (nome, matricula, funcao_padrao, ativo)
         VALUES (%(nome)s, %(matricula)s, %(funcao_padrao)s, %(ativo)s)
         RETURNING id, nome, matricula, funcao_padrao, ativo, created_at
         """,
@@ -563,10 +563,10 @@ def insert_membro_equipe(data: dict[str, Any]) -> dict:
     return row
 
 
-def update_membro_equipe(mid: int, data: dict[str, Any]) -> dict | None:
+def update_agente(aid: int, data: dict[str, Any]) -> dict | None:
     return fetch_one(
         """
-        UPDATE membros_equipe_operacional
+        UPDATE agentes
         SET nome = %(nome)s,
             matricula = %(matricula)s,
             funcao_padrao = %(funcao_padrao)s,
@@ -574,73 +574,140 @@ def update_membro_equipe(mid: int, data: dict[str, Any]) -> dict | None:
         WHERE id = %(id)s
         RETURNING id, nome, matricula, funcao_padrao, ativo, created_at
         """,
-        {**data, "id": mid},
+        {**data, "id": aid},
     )
 
 
-def delete_membro_equipe(mid: int) -> None:
-    execute_query("DELETE FROM membros_equipe_operacional WHERE id = %s", (mid,))
+def delete_agente(aid: int) -> None:
+    execute_query("DELETE FROM agentes WHERE id = %s", (aid,))
 
 
-# --- Condutores ---
+# --- Equipes operacionais ---
 
 
-def list_condutores(q: str | None = None) -> list[dict]:
+_EQUIPE_SELECT = """
+    SELECT e.id, e.numero, e.nome, e.ativo, e.created_at,
+           e.delegado_id, e.escrivao_id,
+           d.nome AS delegado_nome,
+           d.matricula AS delegado_matricula,
+           es.nome AS escrivao_nome,
+           COALESCE((
+               SELECT COUNT(*) FROM equipe_operacional_membros em
+               WHERE em.equipe_id = e.id
+           ), 0)::int AS agentes_count
+    FROM equipes_operacionais e
+    JOIN delegados d ON d.id = e.delegado_id
+    JOIN escrivaos es ON es.id = e.escrivao_id
+"""
+
+
+def list_equipes(q: str | None = None) -> list[dict]:
     like = _like(q)
+    params: dict[str, Any] = {}
+    where = ["1=1"]
     if like:
-        return fetch_all(
-            """
-            SELECT id, nome, matricula, ativo, created_at
-            FROM condutores_operacao
-            WHERE nome ILIKE %(like)s OR COALESCE(matricula,'') ILIKE %(like)s
-            ORDER BY nome
-            """,
-            {"like": like},
-        )
-    return fetch_all(
-        """
-        SELECT id, nome, matricula, ativo, created_at
-        FROM condutores_operacao
-        ORDER BY nome
-        """
-    )
+        where.append("(e.numero ILIKE %(like)s OR COALESCE(e.nome,'') ILIKE %(like)s)")
+        params["like"] = like
+    sql = f"""
+        {_EQUIPE_SELECT}
+        WHERE {' AND '.join(where)}
+        ORDER BY e.numero
+    """
+    return fetch_all(sql, params)
 
 
-def get_condutor(cid: int) -> dict | None:
+def get_equipe(eid: int) -> dict | None:
     return fetch_one(
-        """
-        SELECT id, nome, matricula, ativo, created_at
-        FROM condutores_operacao
-        WHERE id = %s
+        f"""
+        {_EQUIPE_SELECT}
+        WHERE e.id = %s
         """,
-        (cid,),
+        (eid,),
     )
 
 
-def insert_condutor(data: dict[str, Any]) -> dict:
+def insert_equipe(data: dict[str, Any]) -> dict:
     row = fetch_one(
         """
-        INSERT INTO condutores_operacao (nome, matricula, ativo)
-        VALUES (%(nome)s, %(matricula)s, %(ativo)s)
-        RETURNING id, nome, matricula, ativo, created_at
+        INSERT INTO equipes_operacionais
+            (numero, nome, delegado_id, escrivao_id, ativo)
+        VALUES
+            (%(numero)s, %(nome)s, %(delegado_id)s, %(escrivao_id)s, %(ativo)s)
+        RETURNING id
         """,
         data,
     )
     assert row is not None
-    return row
+    full = get_equipe(row["id"])
+    assert full is not None
+    return full
 
 
-def update_condutor(cid: int, data: dict[str, Any]) -> dict | None:
-    return fetch_one(
+def update_equipe(eid: int, data: dict[str, Any]) -> dict | None:
+    row = fetch_one(
         """
-        UPDATE condutores_operacao
-        SET nome = %(nome)s, matricula = %(matricula)s, ativo = %(ativo)s
+        UPDATE equipes_operacionais
+        SET numero = %(numero)s,
+            nome = %(nome)s,
+            delegado_id = %(delegado_id)s,
+            escrivao_id = %(escrivao_id)s,
+            ativo = %(ativo)s
         WHERE id = %(id)s
-        RETURNING id, nome, matricula, ativo, created_at
+        RETURNING id
         """,
-        {**data, "id": cid},
+        {**data, "id": eid},
+    )
+    if not row:
+        return None
+    return get_equipe(eid)
+
+
+def delete_equipe(eid: int) -> None:
+    execute_query("DELETE FROM equipes_operacionais WHERE id = %s", (eid,))
+
+
+def list_agentes_da_equipe(eid: int) -> list[dict]:
+    return fetch_all(
+        """
+        SELECT a.id, a.nome, a.matricula, a.funcao_padrao, a.ativo, a.created_at
+        FROM equipe_operacional_membros em
+        JOIN agentes a ON a.id = em.agente_id
+        WHERE em.equipe_id = %s
+        ORDER BY a.nome
+        """,
+        (eid,),
     )
 
 
-def delete_condutor(cid: int) -> None:
-    execute_query("DELETE FROM condutores_operacao WHERE id = %s", (cid,))
+def set_agentes_da_equipe(eid: int, agente_ids: list[int]) -> None:
+    execute_query("DELETE FROM equipe_operacional_membros WHERE equipe_id = %s", (eid,))
+    seen: set[int] = set()
+    for aid in agente_ids:
+        if aid in seen:
+            continue
+        seen.add(aid)
+        execute_query(
+            """
+            INSERT INTO equipe_operacional_membros (equipe_id, agente_id)
+            VALUES (%s, %s)
+            ON CONFLICT (equipe_id, agente_id) DO NOTHING
+            """,
+            (eid, aid),
+        )
+
+
+def list_acbas_da_equipe(eid: int) -> list[dict]:
+    return fetch_all(
+        """
+        SELECT a.id, a.numero_auto, a.data_lavratura, a.alvo_busca,
+               dl.nome AS delegacia_nome,
+               d.nome AS delegado_nome
+        FROM acba_records a
+        LEFT JOIN delegacias dl ON dl.id = a.delegacia_id
+        LEFT JOIN equipes_operacionais eq ON eq.id = a.equipe_id
+        LEFT JOIN delegados d ON d.id = eq.delegado_id
+        WHERE a.equipe_id = %s
+        ORDER BY a.data_lavratura DESC, a.id DESC
+        """,
+        (eid,),
+    )

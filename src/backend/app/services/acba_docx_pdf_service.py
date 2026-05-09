@@ -38,11 +38,11 @@ def _replace_in_document(doc: Document, mapping: dict[str, str]) -> None:
                 _replace_in_paragraph(p, mapping)
 
 
-def _lines_membros(detail: AcbaDetail) -> str:
-    if not detail.membros_equipe:
+def _lines_agentes(detail: AcbaDetail) -> str:
+    if not detail.agentes_equipe:
         return "—"
     lines = []
-    for i, m in enumerate(detail.membros_equipe, start=1):
+    for i, m in enumerate(detail.agentes_equipe, start=1):
         func = m.funcao_padrao or "—"
         lines.append(f"{i}. {m.nome} — Mat.: {m.matricula} — Função: {func}")
     return "\n".join(lines)
@@ -76,8 +76,10 @@ def _lines_testemunhas(detail: AcbaDetail) -> str:
 def build_placeholder_map(detail: AcbaDetail) -> dict[str, str]:
     dt = detail.data_lavratura.strftime("%d/%m/%Y")
     hr = detail.hora_lavratura.strftime("%H:%M")
-    auth_mat = detail.autoridade_matricula or "—"
-    cond_mat = detail.condutor_matricula or "—"
+    delegado_mat = detail.delegado_matricula or "—"
+    equipe_label = f"Equipe {detail.equipe_numero}"
+    if detail.equipe_nome:
+        equipe_label = f"{equipe_label} — {detail.equipe_nome}"
     return {
         "numero_auto": detail.numero_auto,
         "unidade": detail.unidade_nome,
@@ -87,19 +89,22 @@ def build_placeholder_map(detail: AcbaDetail) -> dict[str, str]:
         "uf_nome": detail.uf_nome,
         "data_lavratura": dt,
         "hora_lavratura": hr,
-        "autoridade": detail.autoridade_nome,
-        "autoridade_matricula": auth_mat,
+        "autoridade": detail.delegado_nome,
+        "autoridade_matricula": delegado_mat,
+        "delegado": detail.delegado_nome,
+        "delegado_matricula": delegado_mat,
         "escrivao": detail.escrivao_nome,
         "tipo_procedimento": detail.tipo_procedimento_nome,
         "procedimento_numero": detail.procedimento_numero,
         "fundamento_legal": detail.fundamento_legal,
         "endereco_busca": detail.endereco_busca,
         "alvo_busca": detail.alvo_busca,
-        "condutor": detail.condutor_nome,
-        "condutor_matricula": cond_mat,
         "assinatura_responsavel": detail.assinatura_responsavel,
         "observacoes": detail.observacoes or "—",
-        "equipe_texto": _lines_membros(detail),
+        "equipe_numero": detail.equipe_numero,
+        "equipe_nome": detail.equipe_nome or "—",
+        "equipe_identificacao": equipe_label,
+        "equipe_texto": _lines_agentes(detail),
         "objetos_texto": _lines_objetos(detail),
         "testemunhas_texto": _lines_testemunhas(detail),
     }

@@ -11,7 +11,7 @@ export type ObjetoItem = {
   observacao: string;
 };
 
-export type MembroEquipeBrief = {
+export type AgenteBrief = {
   id: number;
   nome: string;
   matricula: string;
@@ -25,17 +25,14 @@ export type AcbaFormPayload = {
   cidade_id: number;
   data_lavratura: string;
   hora_lavratura: string;
-  autoridade_id: number;
-  escrivao_id: number;
   tipo_procedimento_id: number;
   procedimento_numero: string;
   fundamento_legal: string;
   endereco_busca: string;
   alvo_busca: string;
-  condutor_id: number;
   assinatura_responsavel: string;
   observacoes: string;
-  membro_ids: number[];
+  equipe_id: number;
   testemunhas: TestemunhaItem[];
   objetos_arrecadados: ObjetoItem[];
 };
@@ -46,7 +43,9 @@ export type AcbaListItem = {
   delegacia_nome: string;
   data_lavratura: string;
   alvo_busca: string;
-  autoridade_nome: string;
+  delegado_nome: string;
+  equipe_numero: string;
+  equipe_nome?: string | null;
   created_at: string;
 };
 
@@ -60,11 +59,36 @@ export type AcbaDetail = AcbaFormPayload & {
   cidade_nome: string;
   uf_sigla: string;
   uf_nome: string;
-  autoridade_nome: string;
-  autoridade_matricula?: string | null;
-  escrivao_nome: string;
   tipo_procedimento_nome: string;
-  condutor_nome: string;
-  condutor_matricula?: string | null;
-  membros_equipe: MembroEquipeBrief[];
+  equipe_numero: string;
+  equipe_nome?: string | null;
+  delegado_id: number;
+  delegado_nome: string;
+  delegado_matricula?: string | null;
+  escrivao_id: number;
+  escrivao_nome: string;
+  agentes_equipe: AgenteBrief[];
+};
+
+export type EquipeOperacional = {
+  id: number;
+  numero: string;
+  nome?: string | null;
+  delegado_id: number;
+  escrivao_id: number;
+  delegado_nome?: string | null;
+  delegado_matricula?: string | null;
+  escrivao_nome?: string | null;
+  ativo: boolean;
+  agentes_count: number;
+  created_at: string;
+};
+
+export type EquipeAcbaItem = {
+  id: number;
+  numero_auto: string;
+  data_lavratura: string;
+  alvo_busca: string;
+  delegacia_nome?: string | null;
+  delegado_nome?: string | null;
 };

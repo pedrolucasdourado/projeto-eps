@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -111,7 +111,7 @@ class TipoProcedimentoRead(TipoProcedimentoBase):
     created_at: datetime
 
 
-class AutoridadeBase(BaseModel):
+class DelegadoBase(BaseModel):
     nome: str = Field(min_length=2, max_length=220)
     matricula: str | None = Field(default=None, max_length=80)
     delegacia_id: int | None = None
@@ -119,11 +119,11 @@ class AutoridadeBase(BaseModel):
     ativo: bool = True
 
 
-class AutoridadeCreate(AutoridadeBase):
+class DelegadoCreate(DelegadoBase):
     pass
 
 
-class AutoridadeUpdate(BaseModel):
+class DelegadoUpdate(BaseModel):
     nome: str | None = Field(default=None, min_length=2, max_length=220)
     matricula: str | None = Field(default=None, max_length=80)
     delegacia_id: int | None = None
@@ -131,7 +131,7 @@ class AutoridadeUpdate(BaseModel):
     ativo: bool | None = None
 
 
-class AutoridadeRead(AutoridadeBase):
+class DelegadoRead(DelegadoBase):
     id: int
     delegacia_nome: str | None = None
     unidade_nome: str | None = None
@@ -163,45 +163,66 @@ class EscrivaoRead(EscrivaoBase):
     created_at: datetime
 
 
-class MembroEquipeBase(BaseModel):
+class AgenteBase(BaseModel):
     nome: str = Field(min_length=2, max_length=220)
     matricula: str = Field(min_length=1, max_length=80)
     funcao_padrao: str | None = Field(default=None, max_length=120)
     ativo: bool = True
 
 
-class MembroEquipeCreate(MembroEquipeBase):
+class AgenteCreate(AgenteBase):
     pass
 
 
-class MembroEquipeUpdate(BaseModel):
+class AgenteUpdate(BaseModel):
     nome: str | None = Field(default=None, min_length=2, max_length=220)
     matricula: str | None = Field(default=None, min_length=1, max_length=80)
     funcao_padrao: str | None = Field(default=None, max_length=120)
     ativo: bool | None = None
 
 
-class MembroEquipeRead(MembroEquipeBase):
+class AgenteRead(AgenteBase):
     id: int
     created_at: datetime
 
 
-class CondutorBase(BaseModel):
-    nome: str = Field(min_length=2, max_length=220)
-    matricula: str | None = Field(default=None, max_length=80)
+class EquipeOperacionalBase(BaseModel):
+    numero: str = Field(min_length=1, max_length=40)
+    nome: str | None = Field(default=None, max_length=220)
+    delegado_id: int = Field(ge=1)
+    escrivao_id: int = Field(ge=1)
     ativo: bool = True
 
 
-class CondutorCreate(CondutorBase):
+class EquipeOperacionalCreate(EquipeOperacionalBase):
     pass
 
 
-class CondutorUpdate(BaseModel):
-    nome: str | None = Field(default=None, min_length=2, max_length=220)
-    matricula: str | None = Field(default=None, max_length=80)
+class EquipeOperacionalUpdate(BaseModel):
+    numero: str | None = Field(default=None, min_length=1, max_length=40)
+    nome: str | None = Field(default=None, max_length=220)
+    delegado_id: int | None = None
+    escrivao_id: int | None = None
     ativo: bool | None = None
 
 
-class CondutorRead(CondutorBase):
+class EquipeOperacionalRead(EquipeOperacionalBase):
     id: int
+    agentes_count: int = 0
+    delegado_nome: str | None = None
+    delegado_matricula: str | None = None
+    escrivao_nome: str | None = None
     created_at: datetime
+
+
+class EquipeAgentesUpdate(BaseModel):
+    agente_ids: list[int] = Field(default_factory=list)
+
+
+class EquipeAcbaItem(BaseModel):
+    id: int
+    numero_auto: str
+    data_lavratura: date
+    alvo_busca: str
+    delegacia_nome: str | None = None
+    delegado_nome: str | None = None
