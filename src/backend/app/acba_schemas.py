@@ -59,7 +59,8 @@ def _clean_objetos(items: Any) -> list[dict[str, Any]]:
 
 
 class AcbaBase(BaseModel):
-    numero_auto: str = Field(min_length=2, max_length=80)
+    processo_numero: str = Field(min_length=2, max_length=60)
+    protocolo_numero: str = Field(min_length=2, max_length=60)
     unidade_id: int = Field(ge=1)
     delegacia_id: int = Field(ge=1)
     cidade_id: int = Field(ge=1)
@@ -106,7 +107,8 @@ class AgenteBrief(BaseModel):
 
 class AcbaListItem(BaseModel):
     id: int
-    numero_auto: str
+    processo_numero: str
+    protocolo_numero: str
     delegacia_nome: str
     data_lavratura: date
     alvo_busca: str
@@ -118,7 +120,8 @@ class AcbaListItem(BaseModel):
 
 class AcbaDetail(BaseModel):
     id: int
-    numero_auto: str
+    processo_numero: str
+    protocolo_numero: str
     unidade_id: int
     delegacia_id: int
     cidade_id: int
@@ -141,6 +144,7 @@ class AcbaDetail(BaseModel):
     uf_sigla: str
     uf_nome: str
     tipo_procedimento_nome: str
+    processo_descricao: str | None = None
 
     equipe_id: int
     equipe_numero: str

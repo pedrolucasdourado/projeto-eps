@@ -88,3 +88,9 @@ SELECT eq.id, a.id
 FROM equipes_operacionais eq
 JOIN agentes a ON a.matricula IN ('A-1004', 'A-1005', 'A-1006', 'A-1001')
 WHERE eq.numero = '02';
+
+-- Processos de exemplo. Cada ACBA escolhe um processo e informa o protocolo
+-- daquela diligência diretamente no formulário (o protocolo não tem cadastro).
+INSERT INTO processos (numero, descricao) VALUES
+    ('0001234-56.2025.8.07.0001', 'Operação Aurora — investigação de organização criminosa'),
+    ('0007890-12.2025.8.07.0002', 'Operação Farol — entorpecentes e lavagem de capitais');

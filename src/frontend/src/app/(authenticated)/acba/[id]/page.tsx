@@ -65,7 +65,11 @@ export default function AcbaDetailPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `acba_${record?.numero_auto ?? params.id}.pdf`;
+      const slug = (record?.protocolo_numero ?? params.id)
+        .toString()
+        .replace(/\//g, "_")
+        .replace(/\s+/g, "_");
+      link.download = `acba_${slug}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -87,9 +91,23 @@ export default function AcbaDetailPage() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-shell-text">
-          ACBA {record.numero_auto}
-        </h2>
+        <div>
+          <p className="text-xs uppercase tracking-[0.12em] text-shell-muted">
+            Processo{" "}
+            <span className="font-mono normal-case tracking-normal text-shell-text">
+              {record.processo_numero}
+            </span>
+          </p>
+          <h2 className="text-xl font-semibold text-shell-text">
+            ACBA — Prot.{" "}
+            <span className="font-mono">{record.protocolo_numero}</span>
+          </h2>
+          {record.processo_descricao ? (
+            <p className="text-sm text-shell-muted">
+              {record.processo_descricao}
+            </p>
+          ) : null}
+        </div>
         <div className="flex gap-2">
           <button
             type="button"

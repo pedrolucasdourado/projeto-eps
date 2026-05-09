@@ -5,7 +5,9 @@
 
 | Marcador | Conteúdo |
 |----------|-----------|
-| `{{numero_auto}}` | Número do auto |
+| `{{processo_numero}}` | Número do processo |
+| `{{protocolo_numero}}` | Número do protocolo (Prot.) |
+| `{{processo_descricao}}` | Descrição do processo (opcional) |
 | `{{unidade}}` | Unidade responsável |
 | `{{delegacia}}` | Delegacia |
 | `{{cidade}}` | Cidade |
@@ -25,8 +27,6 @@
 | `{{objetos_texto}}` | Objetos (bloco multilinhas) |
 | `{{testemunhas_texto}}` | Testemunhas (bloco multilinhas) |
 | `{{observacoes}}` | Observações |
-| `{{condutor}}` | Condutor |
-| `{{condutor_matricula}}` | Matrícula do condutor |
 | `{{assinatura_responsavel}}` | Nome na linha de assinatura |
 
 3. O backend preenche esses trechos e converte para PDF com **LibreOffice** no container.

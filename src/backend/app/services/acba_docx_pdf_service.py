@@ -81,7 +81,9 @@ def build_placeholder_map(detail: AcbaDetail) -> dict[str, str]:
     if detail.equipe_nome:
         equipe_label = f"{equipe_label} — {detail.equipe_nome}"
     return {
-        "numero_auto": detail.numero_auto,
+        "processo_numero": detail.processo_numero,
+        "protocolo_numero": detail.protocolo_numero,
+        "processo_descricao": detail.processo_descricao or "—",
         "unidade": detail.unidade_nome,
         "delegacia": detail.delegacia_nome,
         "cidade": detail.cidade_nome,

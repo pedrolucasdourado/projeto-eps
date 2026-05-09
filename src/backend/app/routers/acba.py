@@ -43,12 +43,13 @@ def generate_pdf(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Falha ao gerar PDF: {exc}",
         ) from exc
+    safe_protocolo = record.protocolo_numero.replace("/", "_").replace(" ", "_")
     return Response(
         content=content,
         media_type="application/pdf",
         headers={
             "Content-Disposition": (
-                f'attachment; filename="acba_{record.numero_auto.replace("/", "_")}.pdf"'
+                f'attachment; filename="acba_{safe_protocolo}.pdf"'
             )
         },
     )

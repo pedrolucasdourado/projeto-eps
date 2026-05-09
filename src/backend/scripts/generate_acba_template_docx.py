@@ -23,7 +23,9 @@ def main() -> None:
     )
 
     pairs = [
-        ("Numero do auto", "{{numero_auto}}"),
+        ("Numero do processo", "{{processo_numero}}"),
+        ("Numero do protocolo", "{{protocolo_numero}}"),
+        ("Descricao do processo", "{{processo_descricao}}"),
         ("Unidade responsavel", "{{unidade}}"),
         ("Delegacia", "{{delegacia}}"),
         ("Cidade / UF", "{{cidade}} — {{uf_sigla}} / {{uf_nome}}"),
@@ -38,7 +40,6 @@ def main() -> None:
         ("Objetos arrecadados", "{{objetos_texto}}"),
         ("Testemunhas", "{{testemunhas_texto}}"),
         ("Observacoes", "{{observacoes}}"),
-        ("Condutor", "{{condutor}} (Mat. {{condutor_matricula}})"),
         ("Responsavel pela assinatura", "{{assinatura_responsavel}}"),
     ]
     for label, ph in pairs:
@@ -46,8 +47,8 @@ def main() -> None:
         doc.add_paragraph(ph)
 
     doc.add_paragraph("")
-    doc.add_paragraph("____________________________________       ____________________________________")
-    doc.add_paragraph("{{assinatura_responsavel}}                     Condutor: {{condutor}}")
+    doc.add_paragraph("____________________________________")
+    doc.add_paragraph("{{assinatura_responsavel}}")
 
     doc.save(out)
     print(f"Gerado: {out}")

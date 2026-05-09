@@ -699,7 +699,8 @@ def set_agentes_da_equipe(eid: int, agente_ids: list[int]) -> None:
 def list_acbas_da_equipe(eid: int) -> list[dict]:
     return fetch_all(
         """
-        SELECT a.id, a.numero_auto, a.data_lavratura, a.alvo_busca,
+        SELECT a.id, a.processo_numero, a.protocolo_numero,
+               a.data_lavratura, a.alvo_busca,
                dl.nome AS delegacia_nome,
                d.nome AS delegado_nome
         FROM acba_records a
@@ -711,3 +712,80 @@ def list_acbas_da_equipe(eid: int) -> list[dict]:
         """,
         (eid,),
     )
+
+
+# --- Processos ---
+
+
+_PROCESSO_SELECT = """
+    SELECT p.numero, p.descricao, p.ativo, p.created_at,
+           COALESCE((
+               SELECT COUNT(*) FROM acba_records a
+               WHERE a.processo_numero = p.numero
+           ), 0)::int AS acbas_count
+    FROM processos p
+"""
+
+
+def list_processos(q: str | None = None) -> list[dict]:
+    like = _like(q)
+    if like:
+        return fetch_all(
+            f"""
+            {_PROCESSO_SELECT}
+            WHERE p.numero ILIKE %(like)s OR COALESCE(p.descricao, '') ILIKE %(like)s
+            ORDER BY p.numero
+            """,
+            {"like": like},
+        )
+    return fetch_all(
+        f"""
+        {_PROCESSO_SELECT}
+        ORDER BY p.numero
+        """
+    )
+
+
+def get_processo(numero: str) -> dict | None:
+    return fetch_one(
+        f"""
+        {_PROCESSO_SELECT}
+        WHERE p.numero = %s
+        """,
+        (numero,),
+    )
+
+
+def insert_processo(data: dict[str, Any]) -> dict:
+    row = fetch_one(
+        """
+        INSERT INTO processos (numero, descricao, ativo)
+        VALUES (%(numero)s, %(descricao)s, %(ativo)s)
+        RETURNING numero
+        """,
+        data,
+    )
+    assert row is not None
+    full = get_processo(row["numero"])
+    assert full is not None
+    return full
+
+
+def update_processo(numero: str, data: dict[str, Any]) -> dict | None:
+    row = fetch_one(
+        """
+        UPDATE processos
+        SET descricao = %(descricao)s,
+            ativo = %(ativo)s
+        WHERE numero = %(numero)s
+        RETURNING numero
+        """,
+        {**data, "numero": numero},
+    )
+    if not row:
+        return None
+    return get_processo(numero)
+
+
+def delete_processo(numero: str) -> None:
+    execute_query("DELETE FROM processos WHERE numero = %s", (numero,))

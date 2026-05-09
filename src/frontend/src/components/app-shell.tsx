@@ -20,6 +20,7 @@ const cadastroSlugOrder = [
   "delegados",
   "escrivaos",
   "agentes",
+  "processos",
   "tipos-procedimento",
 ] as const satisfies readonly (keyof typeof CADASTROS)[];
 

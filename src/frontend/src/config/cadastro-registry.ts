@@ -15,6 +15,17 @@ export type CadastroDefinition = {
   apiPath: string;
   columns: { key: string; label: string }[];
   fields: CatalogField[];
+  /**
+   * Nome do campo que identifica a linha nas rotas (PUT/DELETE) e na chave do React.
+   * Default: "id" (PK numérica). Use "numero" para tabelas com PK natural (string),
+   * como processos.
+   */
+  idField?: string;
+  /**
+   * Quando true, o campo de identificação não pode ser alterado na edição
+   * (PK natural ou imutável). O input aparece desabilitado no modo edit.
+   */
+  identifierLocked?: boolean;
 };
 
 export const CADASTROS: Record<string, CadastroDefinition> = {
@@ -179,6 +190,23 @@ export const CADASTROS: Record<string, CadastroDefinition> = {
       { kind: "text", name: "nome", label: "Nome", required: true },
       { kind: "text", name: "matricula", label: "Matrícula", required: true },
       { kind: "text", name: "funcao_padrao", label: "Função padrão" },
+      { kind: "checkbox", name: "ativo", label: "Ativo" },
+    ],
+  },
+  processos: {
+    title: "Processos",
+    apiPath: "/api/cadastros/processos",
+    idField: "numero",
+    identifierLocked: true,
+    columns: [
+      { key: "numero", label: "Número" },
+      { key: "descricao", label: "Descrição" },
+      { key: "acbas_count", label: "ACBAs" },
+      { key: "ativo", label: "Ativo" },
+    ],
+    fields: [
+      { kind: "text", name: "numero", label: "Número do processo", required: true },
+      { kind: "text", name: "descricao", label: "Descrição" },
       { kind: "checkbox", name: "ativo", label: "Ativo" },
     ],
   },

@@ -76,7 +76,8 @@ export default function EquipeAcbasPage() {
         <table className="w-full text-left text-sm">
           <thead className="bg-[#0f141c] text-shell-muted">
             <tr>
-              <th className="px-4 py-3">Número</th>
+              <th className="px-4 py-3">Processo</th>
+              <th className="px-4 py-3">Protocolo</th>
               <th className="px-4 py-3">Data</th>
               <th className="px-4 py-3">Alvo</th>
               <th className="px-4 py-3">Delegacia</th>
@@ -87,20 +88,25 @@ export default function EquipeAcbasPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-shell-muted">
+                <td colSpan={7} className="px-4 py-6 text-shell-muted">
                   Carregando...
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-shell-muted">
+                <td colSpan={7} className="px-4 py-6 text-shell-muted">
                   Nenhum ACBA vinculado a esta equipe.
                 </td>
               </tr>
             ) : (
               items.map((row) => (
                 <tr key={row.id} className="border-t border-shell-border/70">
-                  <td className="px-4 py-3 text-shell-text">{row.numero_auto}</td>
+                  <td className="px-4 py-3 text-shell-text font-mono">
+                    {row.processo_numero}
+                  </td>
+                  <td className="px-4 py-3 text-shell-text font-mono">
+                    {row.protocolo_numero}
+                  </td>
                   <td className="px-4 py-3 text-shell-text">
                     {new Date(row.data_lavratura).toLocaleDateString("pt-BR")}
                   </td>

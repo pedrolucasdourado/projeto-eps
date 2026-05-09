@@ -221,8 +221,29 @@ class EquipeAgentesUpdate(BaseModel):
 
 class EquipeAcbaItem(BaseModel):
     id: int
-    numero_auto: str
+    processo_numero: str
+    protocolo_numero: str
     data_lavratura: date
     alvo_busca: str
     delegacia_nome: str | None = None
     delegado_nome: str | None = None
+
+
+class ProcessoBase(BaseModel):
+    numero: str = Field(min_length=2, max_length=60)
+    descricao: str | None = Field(default=None, max_length=220)
+    ativo: bool = True
+
+
+class ProcessoCreate(ProcessoBase):
+    pass
+
+
+class ProcessoUpdate(BaseModel):
+    descricao: str | None = Field(default=None, max_length=220)
+    ativo: bool | None = None
+
+
+class ProcessoRead(ProcessoBase):
+    acbas_count: int = 0
+    created_at: datetime

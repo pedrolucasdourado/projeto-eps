@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   type ReactNode,
   FormEvent,
+  KeyboardEvent,
   useEffect,
   useMemo,
   useState,
@@ -16,6 +17,7 @@ import type {
   AgenteBrief,
   EquipeOperacional,
   ObjetoItem,
+  Processo,
   TestemunhaItem,
 } from "@/types/acba";
 
@@ -35,7 +37,8 @@ function readonlyClass() {
 
 function emptyPayload(): AcbaFormPayload {
   return {
-    numero_auto: "",
+    processo_numero: "",
+    protocolo_numero: "",
     unidade_id: 0,
     delegacia_id: 0,
     cidade_id: 0,
@@ -56,7 +59,8 @@ function emptyPayload(): AcbaFormPayload {
 
 function detailToPayload(d: AcbaDetail): AcbaFormPayload {
   return {
-    numero_auto: d.numero_auto,
+    processo_numero: d.processo_numero,
+    protocolo_numero: d.protocolo_numero,
     unidade_id: d.unidade_id,
     delegacia_id: d.delegacia_id,
     cidade_id: d.cidade_id,
@@ -87,8 +91,17 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
   const [delegacias, setDelegacias] = useState<Record<string, unknown>[]>([]);
   const [tipos, setTipos] = useState<Record<string, unknown>[]>([]);
   const [equipes, setEquipes] = useState<EquipeOperacional[]>([]);
+  const [processos, setProcessos] = useState<Processo[]>([]);
   const [agentesPreview, setAgentesPreview] = useState<AgenteBrief[]>(
     initialDetail?.agentes_equipe ?? [],
+  );
+
+  const [processoModalOpen, setProcessoModalOpen] = useState(false);
+  const [newProcessoNumero, setNewProcessoNumero] = useState("");
+  const [newProcessoDescricao, setNewProcessoDescricao] = useState("");
+  const [savingProcesso, setSavingProcesso] = useState(false);
+  const [processoModalError, setProcessoModalError] = useState<string | null>(
+    null,
   );
 
   useEffect(() => {
@@ -101,7 +114,7 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
   useEffect(() => {
     async function load() {
       try {
-        const [u, c, d, t, eq] = await Promise.all([
+        const [u, c, d, t, eq, pr] = await Promise.all([
           apiRequest<Record<string, unknown>[]>("/api/cadastros/unidades"),
           apiRequest<Record<string, unknown>[]>("/api/cadastros/cidades"),
           apiRequest<Record<string, unknown>[]>("/api/cadastros/delegacias"),
@@ -109,12 +122,14 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
             "/api/cadastros/tipos-procedimento",
           ),
           apiRequest<EquipeOperacional[]>("/api/cadastros/equipes"),
+          apiRequest<Processo[]>("/api/cadastros/processos"),
         ]);
         setUnidades(u);
         setCidades(c);
         setDelegacias(d);
         setTipos(t);
         setEquipes(eq);
+        setProcessos(pr);
       } catch {
         setError("Não foi possível carregar cadastros auxiliares.");
       }
@@ -159,6 +174,11 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
     [equipes],
   );
 
+  const processosAtivos = useMemo(
+    () => processos.filter((p) => p.ativo),
+    [processos],
+  );
+
   const equipeSelecionada = useMemo(
     () => equipes.find((e) => e.id === form.equipe_id) ?? null,
     [equipes, form.equipe_id],
@@ -176,9 +196,75 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
     setForm({ ...form, objetos_arrecadados: next });
   }
 
+  function openProcessoModal() {
+    setNewProcessoNumero("");
+    setNewProcessoDescricao("");
+    setProcessoModalError(null);
+    setProcessoModalOpen(true);
+  }
+
+  function closeProcessoModal() {
+    if (savingProcesso) return;
+    setProcessoModalOpen(false);
+    setProcessoModalError(null);
+  }
+
+  async function saveProcessoInline() {
+    setProcessoModalError(null);
+    const numero = newProcessoNumero.trim();
+    if (numero.length < 2) {
+      setProcessoModalError("Informe o número do processo.");
+      return;
+    }
+    if (processos.some((p) => p.numero === numero)) {
+      setProcessoModalError(
+        "Este processo já está cadastrado — selecione-o na lista.",
+      );
+      return;
+    }
+    setSavingProcesso(true);
+    try {
+      const created = await apiRequest<Processo>("/api/cadastros/processos", {
+        method: "POST",
+        body: JSON.stringify({
+          numero,
+          descricao: newProcessoDescricao.trim() || null,
+          ativo: true,
+        }),
+      });
+      setProcessos((prev) =>
+        [...prev.filter((p) => p.numero !== created.numero), created].sort(
+          (a, b) => a.numero.localeCompare(b.numero),
+        ),
+      );
+      setForm((prev) => ({ ...prev, processo_numero: created.numero }));
+      setProcessoModalOpen(false);
+    } catch (err) {
+      setProcessoModalError(
+        err instanceof Error ? err.message : "Erro ao cadastrar processo.",
+      );
+    } finally {
+      setSavingProcesso(false);
+    }
+  }
+
+  function handleProcessoModalKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void saveProcessoInline();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      closeProcessoModal();
+    }
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!form.processo_numero.trim() || !form.protocolo_numero.trim()) {
+      setError("Selecione o processo e informe o número do protocolo.");
+      return;
+    }
     if (!form.data_lavratura || !form.hora_lavratura) {
       setError("Informe data e hora da lavratura.");
       return;
@@ -224,13 +310,59 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
         "Identificação e vínculos institucionais",
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <label className="text-sm">
-            <span className="text-shell-muted">Número do auto</span>
+            <span className="text-shell-muted">Processo</span>
+            <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-stretch">
+              <select
+                className={`${inputClass()} flex-1`}
+                value={form.processo_numero}
+                onChange={(e) =>
+                  setForm({ ...form, processo_numero: e.target.value })
+                }
+                required
+              >
+                <option value="">Selecione</option>
+                {processosAtivos.map((p) => (
+                  <option key={p.numero} value={p.numero}>
+                    {p.numero}
+                    {p.descricao ? ` — ${p.descricao}` : ""}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={openProcessoModal}
+                className="rounded border border-shell-accent/50 bg-shell-accentBlue px-3 py-2 text-xs font-semibold text-shell-text hover:bg-[#2a4f86] sm:py-0"
+                title="Cadastrar um processo sem perder os dados deste formulário"
+              >
+                + Novo processo
+              </button>
+            </div>
+          </label>
+          <label className="text-sm">
+            <span className="text-shell-muted">
+              Número do protocolo (Prot.)
+            </span>
             <input
-              className={`${inputClass()} mt-1`}
-              value={form.numero_auto}
-              onChange={(e) => setForm({ ...form, numero_auto: e.target.value })}
+              className={`${inputClass()} mt-1 ${
+                !form.processo_numero ? "cursor-not-allowed opacity-60" : ""
+              }`}
+              value={form.protocolo_numero}
+              onChange={(e) =>
+                setForm({ ...form, protocolo_numero: e.target.value })
+              }
+              disabled={!form.processo_numero}
+              placeholder={
+                form.processo_numero
+                  ? "Ex.: PROT-2025-0001"
+                  : "Selecione um processo primeiro"
+              }
               required
             />
+            {!form.processo_numero ? (
+              <span className="mt-1 block text-xs text-shell-muted">
+                O protocolo é vinculado ao processo escolhido acima.
+              </span>
+            ) : null}
           </label>
           <label className="text-sm">
             <span className="text-shell-muted">Unidade responsável</span>
@@ -625,6 +757,84 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
           {submitting ? "Salvando..." : "Salvar"}
         </button>
       </div>
+
+      {processoModalOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={(ev) => {
+            if (ev.target === ev.currentTarget) closeProcessoModal();
+          }}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-shell-border bg-shell-surface p-6 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="acba-novo-processo-titulo"
+          >
+            <h3
+              id="acba-novo-processo-titulo"
+              className="text-lg font-semibold text-shell-text"
+            >
+              Cadastrar novo processo
+            </h3>
+            <p className="mt-1 text-sm text-shell-muted">
+              Os dados já preenchidos no ACBA são mantidos. O processo
+              cadastrado é selecionado automaticamente ao salvar.
+            </p>
+
+            <div className="mt-4 flex flex-col gap-3">
+              <label className="block text-sm">
+                <span className="text-shell-muted">Número do processo</span>
+                <input
+                  className={`${inputClass()} mt-1`}
+                  value={newProcessoNumero}
+                  onChange={(e) => setNewProcessoNumero(e.target.value)}
+                  onKeyDown={handleProcessoModalKeyDown}
+                  placeholder="Ex.: 0001234-56.2025.8.07.0001"
+                  autoFocus
+                  disabled={savingProcesso}
+                />
+              </label>
+              <label className="block text-sm">
+                <span className="text-shell-muted">Descrição (opcional)</span>
+                <input
+                  className={`${inputClass()} mt-1`}
+                  value={newProcessoDescricao}
+                  onChange={(e) => setNewProcessoDescricao(e.target.value)}
+                  onKeyDown={handleProcessoModalKeyDown}
+                  placeholder="Ex.: Operação Aurora — alvo 1"
+                  disabled={savingProcesso}
+                />
+              </label>
+            </div>
+
+            {processoModalError ? (
+              <p className="mt-3 rounded border border-red-700/60 bg-red-950/30 p-3 text-sm text-red-300">
+                {processoModalError}
+              </p>
+            ) : null}
+
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeProcessoModal}
+                disabled={savingProcesso}
+                className="rounded border border-shell-border px-4 py-2 text-sm text-shell-text disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void saveProcessoInline()}
+                disabled={savingProcesso}
+                className="rounded border border-shell-accent/50 bg-shell-accentBlue px-4 py-2 text-sm font-semibold text-shell-text hover:bg-[#2a4f86] disabled:opacity-60"
+              >
+                {savingProcesso ? "Salvando..." : "Cadastrar e usar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </form>
   );
 }

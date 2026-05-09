@@ -27,6 +27,9 @@ from app.schemas.catalog import (
     EscrivaoCreate,
     EscrivaoRead,
     EscrivaoUpdate,
+    ProcessoCreate,
+    ProcessoRead,
+    ProcessoUpdate,
     TipoProcedimentoCreate,
     TipoProcedimentoRead,
     TipoProcedimentoUpdate,
@@ -604,3 +607,75 @@ def list_equipe_acbas(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Equipe não encontrada.")
     rows = catalog_repo.list_acbas_da_equipe(equipe_id)
     return [EquipeAcbaItem.model_validate(r) for r in rows]
+
+
+# --- Processos ---
+
+
+@router.get("/processos", response_model=list[ProcessoRead])
+def list_processos(
+    q: str | None = Query(None),
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> list[ProcessoRead]:
+    rows = catalog_repo.list_processos(q)
+    return [ProcessoRead.model_validate(r) for r in rows]
+
+
+@router.post(
+    "/processos",
+    response_model=ProcessoRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_processo(
+    body: ProcessoCreate,
+    *,
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> ProcessoRead:
+    try:
+        row = catalog_repo.insert_processo(body.model_dump())
+    except PsycopgError as exc:
+        _raise_pg(exc)
+    return ProcessoRead.model_validate(row)
+
+
+@router.get("/processos/{numero}", response_model=ProcessoRead)
+def get_processo(
+    numero: str,
+    *,
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> ProcessoRead:
+    row = catalog_repo.get_processo(numero)
+    if not row:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Processo não encontrado.")
+    return ProcessoRead.model_validate(row)
+
+
+@router.put("/processos/{numero}", response_model=ProcessoRead)
+def update_processo(
+    numero: str,
+    body: ProcessoUpdate,
+    *,
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> ProcessoRead:
+    row = catalog_repo.get_processo(numero)
+    if not row:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Processo não encontrado.")
+    merged = _merge(("descricao", "ativo"), row, body.model_dump(exclude_unset=True))
+    try:
+        updated = catalog_repo.update_processo(numero, merged)
+    except PsycopgError as exc:
+        _raise_pg(exc)
+    assert updated is not None
+    return ProcessoRead.model_validate(updated)
+
+
+@router.delete("/processos/{numero}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_processo(
+    numero: str,
+    *,
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> None:
+    try:
+        catalog_repo.delete_processo(numero)
+    except PsycopgError as exc:
+        _raise_pg(exc)

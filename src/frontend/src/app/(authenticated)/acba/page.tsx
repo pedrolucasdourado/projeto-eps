@@ -46,7 +46,8 @@ export default function AcbaListPage() {
         <table className="w-full text-left text-sm">
           <thead className="bg-[#0f141c] text-shell-muted">
             <tr>
-              <th className="px-4 py-3">Número</th>
+              <th className="px-4 py-3">Processo</th>
+              <th className="px-4 py-3">Protocolo</th>
               <th className="px-4 py-3">Delegacia</th>
               <th className="px-4 py-3">Data</th>
               <th className="px-4 py-3">Alvo</th>
@@ -58,20 +59,25 @@ export default function AcbaListPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td className="px-4 py-6 text-shell-muted" colSpan={7}>
+                <td className="px-4 py-6 text-shell-muted" colSpan={8}>
                   Carregando registros...
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td className="px-4 py-6 text-shell-muted" colSpan={7}>
+                <td className="px-4 py-6 text-shell-muted" colSpan={8}>
                   Nenhum registro encontrado.
                 </td>
               </tr>
             ) : (
               items.map((item) => (
                 <tr key={item.id} className="border-t border-shell-border/70">
-                  <td className="px-4 py-3 text-shell-text">{item.numero_auto}</td>
+                  <td className="px-4 py-3 text-shell-text font-mono">
+                    {item.processo_numero}
+                  </td>
+                  <td className="px-4 py-3 text-shell-text font-mono">
+                    {item.protocolo_numero}
+                  </td>
                   <td className="px-4 py-3 text-shell-text">{item.delegacia_nome}</td>
                   <td className="px-4 py-3 text-shell-text">
                     {new Date(item.data_lavratura).toLocaleDateString("pt-BR")}

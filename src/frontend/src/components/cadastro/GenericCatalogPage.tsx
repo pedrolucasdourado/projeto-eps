@@ -42,12 +42,13 @@ function serializePayload(fields: CatalogField[], raw: Record<string, string | b
 }
 
 export function GenericCatalogPage({ config }: { config: CadastroDefinition }) {
+  const idField = config.idField ?? "id";
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, string | boolean>>(() =>
     emptyForm(config.fields),
   );
@@ -98,7 +99,8 @@ export function GenericCatalogPage({ config }: { config: CadastroDefinition }) {
   }
 
   function openEdit(row: Record<string, unknown>) {
-    const id = Number(row.id);
+    const idValue = row[idField];
+    const id = idValue != null ? String(idValue) : "";
     setEditingId(id);
     const nf = emptyForm(config.fields);
     for (const f of config.fields) {
@@ -135,10 +137,17 @@ export function GenericCatalogPage({ config }: { config: CadastroDefinition }) {
           body: JSON.stringify(payload),
         });
       } else {
-        await apiRequest(`${config.apiPath}/${editingId}`, {
-          method: "PUT",
-          body: JSON.stringify(payload),
-        });
+        const updatePayload = { ...payload };
+        if (config.identifierLocked) {
+          delete updatePayload[idField];
+        }
+        await apiRequest(
+          `${config.apiPath}/${encodeURIComponent(editingId)}`,
+          {
+            method: "PUT",
+            body: JSON.stringify(updatePayload),
+          },
+        );
       }
       setModalOpen(false);
       await loadRows();
@@ -147,11 +156,13 @@ export function GenericCatalogPage({ config }: { config: CadastroDefinition }) {
     }
   }
 
-  async function removeRow(id: number) {
+  async function removeRow(id: string) {
     if (!confirm("Confirma exclusão?")) return;
     setError(null);
     try {
-      await apiRequest(`${config.apiPath}/${id}`, { method: "DELETE" });
+      await apiRequest(`${config.apiPath}/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
       await loadRows();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao excluir.");
@@ -228,7 +239,10 @@ export function GenericCatalogPage({ config }: { config: CadastroDefinition }) {
               </tr>
             ) : (
               rows.map((row) => (
-                <tr key={String(row.id)} className="border-t border-shell-border/70">
+                <tr
+                  key={String(row[idField])}
+                  className="border-t border-shell-border/70"
+                >
                   {config.columns.map((c) => (
                     <td key={c.key} className="px-4 py-3 text-shell-text">
                       {renderCell(row, c.key)}
@@ -245,7 +259,7 @@ export function GenericCatalogPage({ config }: { config: CadastroDefinition }) {
                     <button
                       type="button"
                       className="text-red-300 hover:underline"
-                      onClick={() => removeRow(Number(row.id))}
+                      onClick={() => removeRow(String(row[idField]))}
                     >
                       Excluir
                     </button>
@@ -266,15 +280,22 @@ export function GenericCatalogPage({ config }: { config: CadastroDefinition }) {
             <div className="flex flex-col gap-3">
               {config.fields.map((f) => {
                 if (f.kind === "text") {
+                  const isLockedIdentifier =
+                    config.identifierLocked === true &&
+                    editingId != null &&
+                    f.name === idField;
                   return (
                     <label key={f.name} className="block text-sm">
                       <span className="text-shell-muted">{f.label}</span>
                       <input
-                        className={`${inputClass()} mt-1`}
+                        className={`${inputClass()} mt-1 ${
+                          isLockedIdentifier ? "opacity-60" : ""
+                        }`}
                         value={String(form[f.name] ?? "")}
                         onChange={(e) =>
                           setForm({ ...form, [f.name]: e.target.value })
                         }
+                        disabled={isLockedIdentifier}
                       />
                     </label>
                   );

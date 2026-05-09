@@ -19,7 +19,8 @@ export type AgenteBrief = {
 };
 
 export type AcbaFormPayload = {
-  numero_auto: string;
+  processo_numero: string;
+  protocolo_numero: string;
   unidade_id: number;
   delegacia_id: number;
   cidade_id: number;
@@ -39,7 +40,8 @@ export type AcbaFormPayload = {
 
 export type AcbaListItem = {
   id: number;
-  numero_auto: string;
+  processo_numero: string;
+  protocolo_numero: string;
   delegacia_nome: string;
   data_lavratura: string;
   alvo_busca: string;
@@ -60,6 +62,7 @@ export type AcbaDetail = AcbaFormPayload & {
   uf_sigla: string;
   uf_nome: string;
   tipo_procedimento_nome: string;
+  processo_descricao?: string | null;
   equipe_numero: string;
   equipe_nome?: string | null;
   delegado_id: number;
@@ -68,6 +71,14 @@ export type AcbaDetail = AcbaFormPayload & {
   escrivao_id: number;
   escrivao_nome: string;
   agentes_equipe: AgenteBrief[];
+};
+
+export type Processo = {
+  numero: string;
+  descricao?: string | null;
+  ativo: boolean;
+  acbas_count: number;
+  created_at: string;
 };
 
 export type EquipeOperacional = {
@@ -86,7 +97,8 @@ export type EquipeOperacional = {
 
 export type EquipeAcbaItem = {
   id: number;
-  numero_auto: string;
+  processo_numero: string;
+  protocolo_numero: string;
   data_lavratura: string;
   alvo_busca: string;
   delegacia_nome?: string | null;

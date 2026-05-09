@@ -17,7 +17,12 @@ class AcbaService:
             if isinstance(exc, Error) and exc.pgcode == "23505":
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="Já existe um auto com este número.",
+                    detail="Já existe um ACBA com este número de protocolo.",
+                ) from exc
+            if isinstance(exc, Error) and exc.pgcode == "23503":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Processo informado não está cadastrado.",
                 ) from exc
             raise
         return AcbaDetail.model_validate(row)
@@ -43,7 +48,12 @@ class AcbaService:
             if isinstance(exc, Error) and exc.pgcode == "23505":
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="Já existe um auto com este número.",
+                    detail="Já existe um ACBA com este número de protocolo.",
+                ) from exc
+            if isinstance(exc, Error) and exc.pgcode == "23503":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Processo informado não está cadastrado.",
                 ) from exc
             raise
         if not row:

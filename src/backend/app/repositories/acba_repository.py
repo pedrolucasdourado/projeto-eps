@@ -7,6 +7,7 @@ from app.db import execute_query, fetch_all, fetch_one
 
 _ACBA_JOIN_BLOCK = """
     FROM acba_records a
+    JOIN processos pr ON pr.numero = a.processo_numero
     JOIN unidades_responsaveis u ON u.id = a.unidade_id
     JOIN delegacias d ON d.id = a.delegacia_id
     JOIN cidades c ON c.id = a.cidade_id
@@ -23,14 +24,16 @@ class AcbaRepository:
         inserted = fetch_one(
             """
             INSERT INTO acba_records (
-                numero_auto, unidade_id, delegacia_id, cidade_id,
+                processo_numero, protocolo_numero,
+                unidade_id, delegacia_id, cidade_id,
                 data_lavratura, hora_lavratura,
                 tipo_procedimento_id,
                 procedimento_numero, fundamento_legal, endereco_busca, alvo_busca,
                 assinatura_responsavel, observacoes,
                 equipe_id, testemunhas, objetos_arrecadados, created_by_user_id
             ) VALUES (
-                %(numero_auto)s, %(unidade_id)s, %(delegacia_id)s, %(cidade_id)s,
+                %(processo_numero)s, %(protocolo_numero)s,
+                %(unidade_id)s, %(delegacia_id)s, %(cidade_id)s,
                 %(data_lavratura)s, %(hora_lavratura)s,
                 %(tipo_procedimento_id)s,
                 %(procedimento_numero)s, %(fundamento_legal)s, %(endereco_busca)s, %(alvo_busca)s,
@@ -57,7 +60,8 @@ class AcbaRepository:
             f"""
             SELECT
                 a.id,
-                a.numero_auto,
+                a.processo_numero,
+                a.protocolo_numero,
                 a.data_lavratura,
                 a.alvo_busca,
                 a.created_at,
@@ -81,6 +85,7 @@ class AcbaRepository:
                 uf.sigla AS uf_sigla,
                 uf.nome AS uf_nome,
                 tp.nome AS tipo_procedimento_nome,
+                pr.descricao AS processo_descricao,
                 eq.numero AS equipe_numero,
                 eq.nome AS equipe_nome,
                 eq.delegado_id AS delegado_id,
@@ -112,7 +117,8 @@ class AcbaRepository:
         updated = fetch_one(
             """
             UPDATE acba_records SET
-                numero_auto = %(numero_auto)s,
+                processo_numero = %(processo_numero)s,
+                protocolo_numero = %(protocolo_numero)s,
                 unidade_id = %(unidade_id)s,
                 delegacia_id = %(delegacia_id)s,
                 cidade_id = %(cidade_id)s,
