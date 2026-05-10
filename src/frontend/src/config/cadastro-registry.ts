@@ -8,6 +8,13 @@ export type CatalogField =
       optionsUrl: string;
       optional?: boolean;
       formatOption: (row: Record<string, unknown>) => string;
+    }
+  | {
+      kind: "enum";
+      name: string;
+      label: string;
+      options: { value: string; label: string }[];
+      required?: boolean;
     };
 
 export type CadastroDefinition = {
@@ -190,6 +197,29 @@ export const CADASTROS: Record<string, CadastroDefinition> = {
       { kind: "text", name: "nome", label: "Nome", required: true },
       { kind: "text", name: "matricula", label: "Matrícula", required: true },
       { kind: "text", name: "funcao_padrao", label: "Função padrão" },
+      { kind: "checkbox", name: "ativo", label: "Ativo" },
+    ],
+  },
+  "tipos-material": {
+    title: "Tipos de material",
+    apiPath: "/api/cadastros/tipos-material",
+    columns: [
+      { key: "nome", label: "Nome" },
+      { key: "tabela_documento", label: "Tabela do documento" },
+      { key: "ativo", label: "Ativo" },
+    ],
+    fields: [
+      { kind: "text", name: "nome", label: "Nome", required: true },
+      {
+        kind: "enum",
+        name: "tabela_documento",
+        label: "Tabela do documento",
+        required: true,
+        options: [
+          { value: "informatica", label: "Informática (tabela 1)" },
+          { value: "geral", label: "Geral (tabela 2)" },
+        ],
+      },
       { kind: "checkbox", name: "ativo", label: "Ativo" },
     ],
   },

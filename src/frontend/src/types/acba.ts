@@ -4,19 +4,61 @@ export type TestemunhaItem = {
   contato: string;
 };
 
-export type ObjetoItem = {
-  descricao: string;
-  quantidade: number;
-  acondicionamento: string;
-  observacao: string;
-};
-
 export type AgenteBrief = {
   id: number;
   nome: string;
   matricula: string;
   funcao_padrao?: string | null;
 };
+
+export type CategoriaDocx = "informatica" | "geral";
+
+export type SenhaTipo =
+  | "nenhuma"
+  | "texto"
+  | "padrao"
+  | "biometria"
+  | "desconhecida";
+
+export type InformaticaPayload = {
+  senha_tipo: SenhaTipo;
+  senha_texto?: string | null;
+  senha_padrao_pontos?: number[] | null;
+  senha_observacao?: string | null;
+};
+
+export type TipoMaterial = {
+  id: number;
+  nome: string;
+  tabela_documento: CategoriaDocx;
+  ativo: boolean;
+  created_at: string;
+};
+
+export type MaterialItem = {
+  id?: number;
+  acba_id?: number;
+  tipo_id: number;
+  tipo_nome?: string;
+  /** Derivado automaticamente do tipo escolhido — só vem nas respostas do backend. */
+  categoria_docx?: CategoriaDocx;
+  item_num?: number | null;
+  descricao: string;
+  descricao_ia_raw?: string | null;
+  revisado: boolean;
+  acondicionamento?: string | null;
+  localizacao?: string | null;
+  observacao?: string | null;
+  ordem: number;
+  informatica?: InformaticaPayload | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type MaterialPayload = Omit<
+  MaterialItem,
+  "id" | "acba_id" | "tipo_nome" | "created_at" | "updated_at"
+>;
 
 export type AcbaFormPayload = {
   processo_numero: string;
@@ -35,7 +77,8 @@ export type AcbaFormPayload = {
   observacoes: string;
   equipe_id: number;
   testemunhas: TestemunhaItem[];
-  objetos_arrecadados: ObjetoItem[];
+  /** Apenas no fluxo de criação — backend grava em transação junto com o ACBA. */
+  materiais?: MaterialPayload[];
 };
 
 export type AcbaListItem = {
@@ -49,9 +92,10 @@ export type AcbaListItem = {
   equipe_numero: string;
   equipe_nome?: string | null;
   created_at: string;
+  materiais_pendentes_revisao: number;
 };
 
-export type AcbaDetail = AcbaFormPayload & {
+export type AcbaDetail = Omit<AcbaFormPayload, "materiais"> & {
   id: number;
   created_by_user_id: number;
   created_at: string;
@@ -71,6 +115,8 @@ export type AcbaDetail = AcbaFormPayload & {
   escrivao_id: number;
   escrivao_nome: string;
   agentes_equipe: AgenteBrief[];
+  materiais: MaterialItem[];
+  materiais_pendentes_revisao: number;
 };
 
 export type Processo = {
@@ -103,4 +149,12 @@ export type EquipeAcbaItem = {
   alvo_busca: string;
   delegacia_nome?: string | null;
   delegado_nome?: string | null;
+};
+
+export type DescribeResponse = {
+  descricao: string;
+  revisado: boolean;
+  cache_hit: boolean;
+  modelo: string;
+  prompt_versao: string;
 };

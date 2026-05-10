@@ -30,6 +30,9 @@ from app.schemas.catalog import (
     ProcessoCreate,
     ProcessoRead,
     ProcessoUpdate,
+    TipoMaterialCreate,
+    TipoMaterialRead,
+    TipoMaterialUpdate,
     TipoProcedimentoCreate,
     TipoProcedimentoRead,
     TipoProcedimentoUpdate,
@@ -677,5 +680,85 @@ def delete_processo(
 ) -> None:
     try:
         catalog_repo.delete_processo(numero)
+    except PsycopgError as exc:
+        _raise_pg(exc)
+
+
+# --- Tipos de material ---
+
+
+@router.get("/tipos-material", response_model=list[TipoMaterialRead])
+def list_tipos_material(
+    q: str | None = Query(None),
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> list[TipoMaterialRead]:
+    rows = catalog_repo.list_tipos_material(q)
+    return [TipoMaterialRead.model_validate(r) for r in rows]
+
+
+@router.post(
+    "/tipos-material",
+    response_model=TipoMaterialRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_tipo_material(
+    body: TipoMaterialCreate,
+    *,
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> TipoMaterialRead:
+    try:
+        row = catalog_repo.insert_tipo_material(body.model_dump())
+    except PsycopgError as exc:
+        _raise_pg(exc)
+    return TipoMaterialRead.model_validate(row)
+
+
+@router.get("/tipos-material/{tipo_id}", response_model=TipoMaterialRead)
+def get_tipo_material(
+    tipo_id: int,
+    *,
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> TipoMaterialRead:
+    row = catalog_repo.get_tipo_material(tipo_id)
+    if not row:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail="Tipo de material não encontrado."
+        )
+    return TipoMaterialRead.model_validate(row)
+
+
+@router.put("/tipos-material/{tipo_id}", response_model=TipoMaterialRead)
+def update_tipo_material(
+    tipo_id: int,
+    body: TipoMaterialUpdate,
+    *,
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> TipoMaterialRead:
+    row = catalog_repo.get_tipo_material(tipo_id)
+    if not row:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail="Tipo de material não encontrado."
+        )
+    merged = _merge(
+        ("nome", "tabela_documento", "ativo"),
+        row,
+        body.model_dump(exclude_unset=True),
+    )
+    try:
+        updated = catalog_repo.update_tipo_material(tipo_id, merged)
+    except PsycopgError as exc:
+        _raise_pg(exc)
+    assert updated is not None
+    return TipoMaterialRead.model_validate(updated)
+
+
+@router.delete("/tipos-material/{tipo_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_tipo_material(
+    tipo_id: int,
+    *,
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> None:
+    try:
+        catalog_repo.delete_tipo_material(tipo_id)
     except PsycopgError as exc:
         _raise_pg(exc)

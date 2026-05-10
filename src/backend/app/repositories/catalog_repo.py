@@ -789,3 +789,68 @@ def update_processo(numero: str, data: dict[str, Any]) -> dict | None:
 
 def delete_processo(numero: str) -> None:
     execute_query("DELETE FROM processos WHERE numero = %s", (numero,))
+
+
+# --- Tipos de material ---
+
+
+def list_tipos_material(q: str | None = None) -> list[dict]:
+    like = _like(q)
+    if like:
+        return fetch_all(
+            """
+            SELECT id, nome, tabela_documento, ativo, created_at
+            FROM tipos_material
+            WHERE nome ILIKE %(like)s
+            ORDER BY nome
+            """,
+            {"like": like},
+        )
+    return fetch_all(
+        """
+        SELECT id, nome, tabela_documento, ativo, created_at
+        FROM tipos_material
+        ORDER BY nome
+        """
+    )
+
+
+def get_tipo_material(tid: int) -> dict | None:
+    return fetch_one(
+        """
+        SELECT id, nome, tabela_documento, ativo, created_at
+        FROM tipos_material WHERE id = %s
+        """,
+        (tid,),
+    )
+
+
+def insert_tipo_material(data: dict[str, Any]) -> dict:
+    row = fetch_one(
+        """
+        INSERT INTO tipos_material (nome, tabela_documento, ativo)
+        VALUES (%(nome)s, %(tabela_documento)s, %(ativo)s)
+        RETURNING id, nome, tabela_documento, ativo, created_at
+        """,
+        data,
+    )
+    assert row is not None
+    return row
+
+
+def update_tipo_material(tid: int, data: dict[str, Any]) -> dict | None:
+    return fetch_one(
+        """
+        UPDATE tipos_material
+        SET nome = %(nome)s,
+            tabela_documento = %(tabela_documento)s,
+            ativo = %(ativo)s
+        WHERE id = %(id)s
+        RETURNING id, nome, tabela_documento, ativo, created_at
+        """,
+        {**data, "id": tid},
+    )
+
+
+def delete_tipo_material(tid: int) -> None:
+    execute_query("DELETE FROM tipos_material WHERE id = %s", (tid,))

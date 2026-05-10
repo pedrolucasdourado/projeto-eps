@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from app.acba_schemas import AcbaCreate, AcbaDetail, AcbaListItem, AcbaUpdate
 from app.routers.auth import get_authenticated_user
@@ -12,9 +12,10 @@ service = AcbaService()
 
 @router.get("/", response_model=list[AcbaListItem])
 def list_records(
+    tipo_material_id: int | None = Query(default=None, ge=1),
     _: UserPublic = Depends(get_authenticated_user),
 ) -> list[AcbaListItem]:
-    return service.list_all()
+    return service.list_all(tipo_material_id=tipo_material_id)
 
 
 @router.post("/", response_model=AcbaDetail, status_code=status.HTTP_201_CREATED)
@@ -31,6 +32,7 @@ def generate_pdf(
     _: UserPublic = Depends(get_authenticated_user),
 ) -> Response:
     record = service.get_by_id(record_id)
+    service.assert_pdf_pronto(record)
     try:
         content = render_acba_pdf_bytes(record)
     except FileNotFoundError as exc:

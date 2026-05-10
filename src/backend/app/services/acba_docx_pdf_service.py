@@ -1,85 +1,93 @@
+"""Renderiza o ACBA em DOCX (via docxtpl) e converte em PDF com LibreOffice.
+
+O template oficial precisa usar a sintaxe Jinja do docxtpl. Veja
+`templates/README.md` para a lista de variáveis e os blocos de loop esperados.
+"""
+
 from __future__ import annotations
 
+import io
 import os
 import shutil
 import subprocess
 import tempfile
 from typing import Any
 
-from docx import Document
+from docxtpl import DocxTemplate, InlineImage
+from docx.shared import Mm
 
 from app.acba_schemas import AcbaDetail
 from app.config import settings
+from app.services.pattern_image import render_pattern_png
 
 
-def _replace_in_paragraph(paragraph: Any, mapping: dict[str, str]) -> None:
-    text = paragraph.text or ""
-    if "{{" not in text:
-        return
-    new_text = text
-    for key, val in mapping.items():
-        new_text = new_text.replace(f"{{{{{key}}}}}", val)
-    paragraph.text = new_text
+def _split_materiais(detail: AcbaDetail) -> tuple[list[dict], list[dict]]:
+    informatica: list[dict] = []
+    geral: list[dict] = []
+    for m in detail.materiais:
+        if m.get("categoria_docx") == "informatica":
+            informatica.append(m)
+        else:
+            geral.append(m)
+    informatica.sort(key=lambda x: x.get("item_num", 0))
+    geral.sort(key=lambda x: x.get("item_num", 0))
+    return informatica, geral
 
 
-def _replace_in_document(doc: Document, mapping: dict[str, str]) -> None:
-    for p in doc.paragraphs:
-        _replace_in_paragraph(p, mapping)
+def _format_senha(m: dict, doc: DocxTemplate) -> Any:
+    """Devolve um valor renderizável para a célula SENHA do template.
 
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                for p in cell.paragraphs:
-                    _replace_in_paragraph(p, mapping)
+    - texto       → string com a senha
+    - padrao      → InlineImage do PNG do padrão
+    - biometria   → texto fixo + observação
+    - nenhuma     → '—'
+    - desconhecida → 'Desconhecida'
+    """
+    inf = m.get("informatica") or {}
+    tipo = inf.get("senha_tipo") or "nenhuma"
+    if tipo == "texto":
+        return inf.get("senha_texto") or "—"
+    if tipo == "padrao":
+        pontos = inf.get("senha_padrao_pontos") or []
+        try:
+            png = render_pattern_png(pontos)
+            return InlineImage(doc, io.BytesIO(png), width=Mm(32))
+        except Exception:
+            return "Padrão: " + " → ".join(str(p) for p in pontos)
+    if tipo == "biometria":
+        extra = inf.get("senha_observacao") or ""
+        return f"Biometria {('— ' + extra) if extra else ''}".strip()
+    if tipo == "desconhecida":
+        return "Desconhecida"
+    return "—"
 
-    for section in doc.sections:
-        for block in (section.header, section.footer):
-            for p in block.paragraphs:
-                _replace_in_paragraph(p, mapping)
 
-
-def _lines_agentes(detail: AcbaDetail) -> str:
+def _agentes_lines(detail: AcbaDetail) -> str:
     if not detail.agentes_equipe:
         return "—"
-    lines = []
-    for i, m in enumerate(detail.agentes_equipe, start=1):
-        func = m.funcao_padrao or "—"
-        lines.append(f"{i}. {m.nome} — Mat.: {m.matricula} — Função: {func}")
-    return "\n".join(lines)
+    return "\n".join(
+        f"{i}. {m.nome} — Mat.: {m.matricula} — Função: {m.funcao_padrao or '—'}"
+        for i, m in enumerate(detail.agentes_equipe, start=1)
+    )
 
 
-def _lines_objetos(detail: AcbaDetail) -> str:
-    if not detail.objetos_arrecadados:
-        return "—"
-    lines = []
-    for i, o in enumerate(detail.objetos_arrecadados, start=1):
-        desc = str(o.get("descricao", ""))
-        qtd = str(o.get("quantidade", ""))
-        ac = str(o.get("acondicionamento", ""))
-        obs = str(o.get("observacao", "") or "")
-        lines.append(f"{i}. {desc} — Qtd: {qtd} — Acond.: {ac} — Obs.: {obs or '—'}")
-    return "\n".join(lines)
-
-
-def _lines_testemunhas(detail: AcbaDetail) -> str:
+def _testemunhas_lines(detail: AcbaDetail) -> str:
     if not detail.testemunhas:
         return "—"
-    lines = []
-    for i, t in enumerate(detail.testemunhas, start=1):
-        lines.append(
-            f"{i}. {t.get('nome','')} — Doc.: {t.get('documento','')} — "
-            f"Contato: {t.get('contato','')}"
-        )
-    return "\n".join(lines)
+    return "\n".join(
+        f"{i}. {t.get('nome','')} — Doc.: {t.get('documento','')} — Contato: {t.get('contato','')}"
+        for i, t in enumerate(detail.testemunhas, start=1)
+    )
 
 
-def build_placeholder_map(detail: AcbaDetail) -> dict[str, str]:
-    dt = detail.data_lavratura.strftime("%d/%m/%Y")
-    hr = detail.hora_lavratura.strftime("%H:%M")
-    delegado_mat = detail.delegado_matricula or "—"
-    equipe_label = f"Equipe {detail.equipe_numero}"
-    if detail.equipe_nome:
-        equipe_label = f"{equipe_label} — {detail.equipe_nome}"
+def build_context(detail: AcbaDetail, doc: DocxTemplate) -> dict[str, Any]:
+    informatica, geral = _split_materiais(detail)
+
+    def _enrich(m: dict) -> dict:
+        out = dict(m)
+        out["senha_render"] = _format_senha(m, doc)
+        return out
+
     return {
         "processo_numero": detail.processo_numero,
         "protocolo_numero": detail.protocolo_numero,
@@ -89,26 +97,26 @@ def build_placeholder_map(detail: AcbaDetail) -> dict[str, str]:
         "cidade": detail.cidade_nome,
         "uf_sigla": detail.uf_sigla,
         "uf_nome": detail.uf_nome,
-        "data_lavratura": dt,
-        "hora_lavratura": hr,
-        "autoridade": detail.delegado_nome,
-        "autoridade_matricula": delegado_mat,
+        "data_lavratura": detail.data_lavratura.strftime("%d/%m/%Y"),
+        "hora_lavratura": detail.hora_lavratura.strftime("%H:%M"),
         "delegado": detail.delegado_nome,
-        "delegado_matricula": delegado_mat,
+        "delegado_matricula": detail.delegado_matricula or "—",
+        "autoridade": detail.delegado_nome,
+        "autoridade_matricula": detail.delegado_matricula or "—",
         "escrivao": detail.escrivao_nome,
         "tipo_procedimento": detail.tipo_procedimento_nome,
         "procedimento_numero": detail.procedimento_numero,
         "fundamento_legal": detail.fundamento_legal,
         "endereco_busca": detail.endereco_busca,
         "alvo_busca": detail.alvo_busca,
-        "assinatura_responsavel": detail.assinatura_responsavel,
-        "observacoes": detail.observacoes or "—",
         "equipe_numero": detail.equipe_numero,
         "equipe_nome": detail.equipe_nome or "—",
-        "equipe_identificacao": equipe_label,
-        "equipe_texto": _lines_agentes(detail),
-        "objetos_texto": _lines_objetos(detail),
-        "testemunhas_texto": _lines_testemunhas(detail),
+        "equipe_texto": _agentes_lines(detail),
+        "testemunhas_texto": _testemunhas_lines(detail),
+        "observacoes": detail.observacoes or "—",
+        "assinatura_responsavel": detail.assinatura_responsavel,
+        "materiais_informatica": [_enrich(m) for m in informatica],
+        "materiais_geral": [_enrich(m) for m in geral],
     }
 
 
@@ -127,9 +135,9 @@ def render_acba_pdf_bytes(detail: AcbaDetail) -> bytes:
             "Coloque o modelo oficial (com placeholders) ou gere o template padrão."
         )
 
-    mapping = build_placeholder_map(detail)
-    doc = Document(template_path)
-    _replace_in_document(doc, mapping)
+    doc = DocxTemplate(template_path)
+    context = build_context(detail, doc)
+    doc.render(context)
 
     tmpdir = tempfile.mkdtemp(prefix="acba_pdf_")
     try:

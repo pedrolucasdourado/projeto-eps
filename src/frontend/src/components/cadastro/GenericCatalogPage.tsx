@@ -14,6 +14,7 @@ function emptyForm(fields: CatalogField[]): Record<string, string | boolean> {
   for (const f of fields) {
     if (f.kind === "checkbox") o[f.name] = true;
     else if (f.kind === "select") o[f.name] = "";
+    else if (f.kind === "enum") o[f.name] = f.options[0]?.value ?? "";
     else o[f.name] = "";
   }
   return o;
@@ -34,6 +35,10 @@ function serializePayload(fields: CatalogField[], raw: Record<string, string | b
       } else {
         out[f.name] = Number(s);
       }
+      continue;
+    }
+    if (f.kind === "enum") {
+      out[f.name] = String(v ?? "").trim();
       continue;
     }
     out[f.name] = String(v ?? "").trim();
@@ -107,6 +112,7 @@ export function GenericCatalogPage({ config }: { config: CadastroDefinition }) {
       const val = row[f.name];
       if (f.kind === "checkbox") nf[f.name] = Boolean(val);
       else if (f.kind === "select") nf[f.name] = val != null ? String(val) : "";
+      else if (f.kind === "enum") nf[f.name] = val != null ? String(val) : "";
       else nf[f.name] = val != null ? String(val) : "";
     }
     setForm(nf);
@@ -125,6 +131,14 @@ export function GenericCatalogPage({ config }: { config: CadastroDefinition }) {
         f.kind === "select" &&
         !f.optional &&
         (payload[f.name] === undefined || payload[f.name] === null)
+      ) {
+        setError(`Selecione ${f.label}.`);
+        return;
+      }
+      if (
+        f.kind === "enum" &&
+        f.required &&
+        !String(payload[f.name] ?? "").trim()
       ) {
         setError(`Selecione ${f.label}.`);
         return;
@@ -311,6 +325,27 @@ export function GenericCatalogPage({ config }: { config: CadastroDefinition }) {
                         }
                       />
                       {f.label}
+                    </label>
+                  );
+                }
+                if (f.kind === "enum") {
+                  return (
+                    <label key={f.name} className="block text-sm">
+                      <span className="text-shell-muted">{f.label}</span>
+                      <select
+                        className={`${inputClass()} mt-1`}
+                        value={String(form[f.name] ?? "")}
+                        onChange={(e) =>
+                          setForm({ ...form, [f.name]: e.target.value })
+                        }
+                      >
+                        {!f.required ? <option value="">—</option> : null}
+                        {f.options.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
                     </label>
                   );
                 }

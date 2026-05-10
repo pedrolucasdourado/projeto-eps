@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import acba, auth, cadastros
+from app.routers import acba, auth, cadastros, materiais
 
 app = FastAPI(
     title="Assistente de Apreensão Inteligente",
@@ -21,6 +21,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/auth")
 app.include_router(cadastros.router, prefix="/api/cadastros", tags=["Cadastros"])
 app.include_router(acba.router, prefix="/api/acba", tags=["ACBA"])
+app.include_router(materiais.router, prefix="/api/acba", tags=["Materiais"])
 
 
 @app.get("/health")

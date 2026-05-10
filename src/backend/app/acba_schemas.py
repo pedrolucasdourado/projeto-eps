@@ -3,18 +3,13 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.materiais import MaterialCreate
+
 
 class TestemunhaItem(BaseModel):
     nome: str = Field(min_length=2, max_length=180)
     documento: str = Field(min_length=2, max_length=80)
     contato: str = Field(min_length=2, max_length=120)
-
-
-class ObjetoItem(BaseModel):
-    descricao: str = Field(min_length=2, max_length=300)
-    quantidade: int = Field(ge=1, le=999999)
-    acondicionamento: str = Field(min_length=2, max_length=120)
-    observacao: str = Field(default="", max_length=300)
 
 
 def _clean_testemunhas(items: Any) -> list[dict[str, str]]:
@@ -29,32 +24,6 @@ def _clean_testemunhas(items: Any) -> list[dict[str, str]]:
         contato = str(raw.get("contato", "")).strip()
         if len(nome) >= 2 and len(documento) >= 2 and len(contato) >= 2:
             out.append({"nome": nome, "documento": documento, "contato": contato})
-    return out
-
-
-def _clean_objetos(items: Any) -> list[dict[str, Any]]:
-    out: list[dict[str, Any]] = []
-    if not isinstance(items, list):
-        return out
-    for raw in items:
-        if not isinstance(raw, dict):
-            continue
-        descricao = str(raw.get("descricao", "")).strip()
-        acondicionamento = str(raw.get("acondicionamento", "")).strip()
-        observacao = str(raw.get("observacao", "") or "").strip()
-        try:
-            quantidade = int(raw.get("quantidade", 1))
-        except (TypeError, ValueError):
-            quantidade = 0
-        if len(descricao) >= 2 and quantidade >= 1 and len(acondicionamento) >= 2:
-            out.append(
-                {
-                    "descricao": descricao,
-                    "quantidade": quantidade,
-                    "acondicionamento": acondicionamento,
-                    "observacao": observacao,
-                }
-            )
     return out
 
 
@@ -75,7 +44,6 @@ class AcbaBase(BaseModel):
     observacoes: str = ""
     equipe_id: int = Field(ge=1)
     testemunhas: list[TestemunhaItem] = Field(default_factory=list)
-    objetos_arrecadados: list[ObjetoItem] = Field(default_factory=list)
 
     @model_validator(mode="before")
     @classmethod
@@ -85,13 +53,11 @@ class AcbaBase(BaseModel):
         out = dict(data)
         if "testemunhas" in out:
             out["testemunhas"] = _clean_testemunhas(out.get("testemunhas"))
-        if "objetos_arrecadados" in out:
-            out["objetos_arrecadados"] = _clean_objetos(out.get("objetos_arrecadados"))
         return out
 
 
 class AcbaCreate(AcbaBase):
-    pass
+    materiais: list[MaterialCreate] = Field(default_factory=list)
 
 
 class AcbaUpdate(AcbaBase):
@@ -116,6 +82,7 @@ class AcbaListItem(BaseModel):
     equipe_numero: str
     equipe_nome: str | None = None
     created_at: datetime
+    materiais_pendentes_revisao: int = 0
 
 
 class AcbaDetail(BaseModel):
@@ -157,4 +124,5 @@ class AcbaDetail(BaseModel):
 
     agentes_equipe: list[AgenteBrief]
     testemunhas: list[dict[str, Any]]
-    objetos_arrecadados: list[dict[str, Any]]
+    materiais: list[dict[str, Any]] = Field(default_factory=list)
+    materiais_pendentes_revisao: int = 0

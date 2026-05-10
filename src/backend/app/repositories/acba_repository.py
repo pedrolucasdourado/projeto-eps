@@ -1,8 +1,9 @@
 from typing import Any
 
-from psycopg2.extras import Json
+from psycopg2.extras import Json, RealDictCursor
 
-from app.db import execute_query, fetch_all, fetch_one
+from app.db import execute_query, fetch_all, fetch_one, get_connection
+from app.repositories import materiais_repository
 
 
 _ACBA_JOIN_BLOCK = """
@@ -19,43 +20,70 @@ _ACBA_JOIN_BLOCK = """
 """
 
 
+_INSERT_ACBA_SQL = """
+    INSERT INTO acba_records (
+        processo_numero, protocolo_numero,
+        unidade_id, delegacia_id, cidade_id,
+        data_lavratura, hora_lavratura,
+        tipo_procedimento_id,
+        procedimento_numero, fundamento_legal, endereco_busca, alvo_busca,
+        assinatura_responsavel, observacoes,
+        equipe_id, testemunhas, created_by_user_id
+    ) VALUES (
+        %(processo_numero)s, %(protocolo_numero)s,
+        %(unidade_id)s, %(delegacia_id)s, %(cidade_id)s,
+        %(data_lavratura)s, %(hora_lavratura)s,
+        %(tipo_procedimento_id)s,
+        %(procedimento_numero)s, %(fundamento_legal)s, %(endereco_busca)s, %(alvo_busca)s,
+        %(assinatura_responsavel)s, %(observacoes)s,
+        %(equipe_id)s, %(testemunhas)s, %(created_by_user_id)s
+    )
+    RETURNING id
+"""
+
+
 class AcbaRepository:
-    def create(self, row: dict[str, Any], created_by_user_id: int) -> dict:
-        inserted = fetch_one(
-            """
-            INSERT INTO acba_records (
-                processo_numero, protocolo_numero,
-                unidade_id, delegacia_id, cidade_id,
-                data_lavratura, hora_lavratura,
-                tipo_procedimento_id,
-                procedimento_numero, fundamento_legal, endereco_busca, alvo_busca,
-                assinatura_responsavel, observacoes,
-                equipe_id, testemunhas, objetos_arrecadados, created_by_user_id
-            ) VALUES (
-                %(processo_numero)s, %(protocolo_numero)s,
-                %(unidade_id)s, %(delegacia_id)s, %(cidade_id)s,
-                %(data_lavratura)s, %(hora_lavratura)s,
-                %(tipo_procedimento_id)s,
-                %(procedimento_numero)s, %(fundamento_legal)s, %(endereco_busca)s, %(alvo_busca)s,
-                %(assinatura_responsavel)s, %(observacoes)s,
-                %(equipe_id)s, %(testemunhas)s, %(objetos_arrecadados)s, %(created_by_user_id)s
-            )
-            RETURNING id
-            """,
-            {
-                **row,
-                "testemunhas": Json(row["testemunhas"]),
-                "objetos_arrecadados": Json(row["objetos_arrecadados"]),
-                "created_by_user_id": created_by_user_id,
-            },
-        )
-        if inserted is None:
-            raise RuntimeError("Falha ao inserir ACBA.")
-        detail = self.get_by_id(inserted["id"])
+    def create(
+        self,
+        row: dict[str, Any],
+        materiais: list[dict[str, Any]],
+        created_by_user_id: int,
+    ) -> dict:
+        """Insere ACBA + materiais em uma única transação.
+
+        `materiais` é uma lista de payloads já validados (formato igual ao
+        aceito por `materiais_repository.insert_material_with_cursor`)."""
+        params = {
+            **row,
+            "testemunhas": Json(row["testemunhas"]),
+            "created_by_user_id": created_by_user_id,
+        }
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(_INSERT_ACBA_SQL, params)
+                fetched = cur.fetchone()
+                if fetched is None:
+                    raise RuntimeError("Falha ao inserir ACBA.")
+                new_id = int(fetched["id"])
+                for mat in materiais:
+                    materiais_repository.insert_material_with_cursor(
+                        cur, new_id, mat
+                    )
+        detail = self.get_by_id(new_id)
         assert detail is not None
         return detail
 
-    def list_all(self) -> list[dict]:
+    def list_all(self, tipo_material_id: int | None = None) -> list[dict]:
+        params: dict[str, Any] = {}
+        extra_where = ""
+        if tipo_material_id is not None:
+            extra_where = """
+                AND EXISTS (
+                    SELECT 1 FROM acba_materiais m
+                    WHERE m.acba_id = a.id AND m.tipo_id = %(tipo_material_id)s
+                )
+            """
+            params["tipo_material_id"] = tipo_material_id
         return fetch_all(
             f"""
             SELECT
@@ -68,10 +96,16 @@ class AcbaRepository:
                 d.nome AS delegacia_nome,
                 dl.nome AS delegado_nome,
                 eq.numero AS equipe_numero,
-                eq.nome AS equipe_nome
+                eq.nome AS equipe_nome,
+                COALESCE((
+                    SELECT COUNT(*)::int FROM acba_materiais m
+                    WHERE m.acba_id = a.id AND m.revisado = FALSE
+                ), 0) AS materiais_pendentes_revisao
             {_ACBA_JOIN_BLOCK}
+            WHERE 1=1 {extra_where}
             ORDER BY a.created_at DESC
-            """
+            """,
+            params,
         )
 
     def get_by_id(self, record_id: int) -> dict | None:
@@ -111,6 +145,10 @@ class AcbaRepository:
             (row["equipe_id"],),
         )
         row["agentes_equipe"] = agentes
+        row["materiais"] = materiais_repository.list_by_acba(record_id)
+        row["materiais_pendentes_revisao"] = (
+            materiais_repository.count_pendentes_revisao(record_id)
+        )
         return row
 
     def update(self, record_id: int, row: dict[str, Any]) -> dict | None:
@@ -133,7 +171,6 @@ class AcbaRepository:
                 observacoes = %(observacoes)s,
                 equipe_id = %(equipe_id)s,
                 testemunhas = %(testemunhas)s,
-                objetos_arrecadados = %(objetos_arrecadados)s,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = %(record_id)s
             RETURNING id
@@ -142,7 +179,6 @@ class AcbaRepository:
                 **row,
                 "record_id": record_id,
                 "testemunhas": Json(row["testemunhas"]),
-                "objetos_arrecadados": Json(row["objetos_arrecadados"]),
             },
         )
         if not updated:

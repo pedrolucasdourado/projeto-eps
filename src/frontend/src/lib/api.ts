@@ -34,7 +34,10 @@ export async function apiRequest<T>(
 ): Promise<T> {
   const token = localStorage.getItem("aai_access_token");
   const headers = new Headers(options.headers || {});
-  if (!headers.has("Content-Type") && options.body) {
+  const body = options.body;
+  const isFormData =
+    typeof FormData !== "undefined" && body instanceof FormData;
+  if (!headers.has("Content-Type") && body && !isFormData) {
     headers.set("Content-Type", "application/json");
   }
   if (token) {

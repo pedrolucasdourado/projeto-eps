@@ -22,6 +22,7 @@ const cadastroSlugOrder = [
   "agentes",
   "processos",
   "tipos-procedimento",
+  "tipos-material",
 ] as const satisfies readonly (keyof typeof CADASTROS)[];
 
 const cadastroLinks = [

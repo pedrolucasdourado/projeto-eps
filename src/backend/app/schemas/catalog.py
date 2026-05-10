@@ -247,3 +247,26 @@ class ProcessoUpdate(BaseModel):
 class ProcessoRead(ProcessoBase):
     acbas_count: int = 0
     created_at: datetime
+
+
+class TipoMaterialBase(BaseModel):
+    nome: str = Field(min_length=2, max_length=120)
+    tabela_documento: str = Field(pattern=r"^(informatica|geral)$")
+    ativo: bool = True
+
+
+class TipoMaterialCreate(TipoMaterialBase):
+    pass
+
+
+class TipoMaterialUpdate(BaseModel):
+    nome: str | None = Field(default=None, min_length=2, max_length=120)
+    tabela_documento: str | None = Field(
+        default=None, pattern=r"^(informatica|geral)$"
+    )
+    ativo: bool | None = None
+
+
+class TipoMaterialRead(TipoMaterialBase):
+    id: int
+    created_at: datetime

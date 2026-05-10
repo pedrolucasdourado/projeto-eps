@@ -45,6 +45,8 @@ services:
       CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://[::1]:3000}"
       ACBA_DOCX_TEMPLATE_PATH: ${ACBA_DOCX_TEMPLATE_PATH:-/app/templates/acba_template.docx}
       LIBREOFFICE_CMD: ${LIBREOFFICE_CMD:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL}
     healthcheck:
       test:
         [

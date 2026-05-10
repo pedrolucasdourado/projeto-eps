@@ -16,10 +16,13 @@ import type {
   AcbaFormPayload,
   AgenteBrief,
   EquipeOperacional,
-  ObjetoItem,
+  MaterialPayload,
   Processo,
   TestemunhaItem,
 } from "@/types/acba";
+
+import { MaterialsDraft } from "./materials-draft";
+import { MaterialsManager } from "./materials-manager";
 
 type Props = {
   submitting: boolean;
@@ -53,7 +56,7 @@ function emptyPayload(): AcbaFormPayload {
     observacoes: "",
     equipe_id: 0,
     testemunhas: [],
-    objetos_arrecadados: [],
+    materiais: [],
   };
 }
 
@@ -76,7 +79,6 @@ function detailToPayload(d: AcbaDetail): AcbaFormPayload {
     observacoes: d.observacoes,
     equipe_id: d.equipe_id,
     testemunhas: (d.testemunhas as TestemunhaItem[]) ?? [],
-    objetos_arrecadados: (d.objetos_arrecadados as ObjetoItem[]) ?? [],
   };
 }
 
@@ -188,12 +190,6 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
     const next = [...form.testemunhas];
     next[i] = { ...next[i], ...p };
     setForm({ ...form, testemunhas: next });
-  }
-
-  function updateObjeto(i: number, p: Partial<ObjetoItem>) {
-    const next = [...form.objetos_arrecadados];
-    next[i] = { ...next[i], ...p };
-    setForm({ ...form, objetos_arrecadados: next });
   }
 
   function openProcessoModal() {
@@ -606,66 +602,17 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
       )}
 
       {section(
-        "Objetos arrecadados",
-        <div className="space-y-2">
-          <button
-            type="button"
-            className="rounded border border-shell-border px-3 py-1 text-xs text-shell-text"
-            onClick={() =>
-              setForm({
-                ...form,
-                objetos_arrecadados: [
-                  ...form.objetos_arrecadados,
-                  {
-                    descricao: "",
-                    quantidade: 1,
-                    acondicionamento: "",
-                    observacao: "",
-                  },
-                ],
-              })
+        "Materiais apreendidos",
+        initialDetail?.id ? (
+          <MaterialsManager acbaId={initialDetail.id} />
+        ) : (
+          <MaterialsDraft
+            value={form.materiais ?? []}
+            onChange={(materiais: MaterialPayload[]) =>
+              setForm({ ...form, materiais })
             }
-          >
-            Adicionar linha
-          </button>
-          {form.objetos_arrecadados.map((item, idx) => (
-            <div key={`obj-${idx}`} className="grid grid-cols-1 gap-2 md:grid-cols-4">
-              <input
-                className={inputClass()}
-                placeholder="Descrição"
-                value={item.descricao}
-                onChange={(e) => updateObjeto(idx, { descricao: e.target.value })}
-              />
-              <input
-                type="number"
-                min={1}
-                className={inputClass()}
-                value={item.quantidade}
-                onChange={(e) =>
-                  updateObjeto(idx, {
-                    quantidade: Number(e.target.value || 1),
-                  })
-                }
-              />
-              <input
-                className={inputClass()}
-                placeholder="Acondicionamento"
-                value={item.acondicionamento}
-                onChange={(e) =>
-                  updateObjeto(idx, { acondicionamento: e.target.value })
-                }
-              />
-              <input
-                className={inputClass()}
-                placeholder="Obs."
-                value={item.observacao}
-                onChange={(e) =>
-                  updateObjeto(idx, { observacao: e.target.value })
-                }
-              />
-            </div>
-          ))}
-        </div>,
+          />
+        ),
       )}
 
       {section(

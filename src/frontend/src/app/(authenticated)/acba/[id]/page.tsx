@@ -221,6 +221,37 @@ export default function AcbaDetailPage() {
         </div>
         <div className="rounded-xl border border-shell-border bg-shell-surface p-5 md:col-span-2">
           <p className="text-xs uppercase tracking-[0.1em] text-shell-muted">
+            Materiais apreendidos{" "}
+            {record.materiais_pendentes_revisao > 0 ? (
+              <span className="ml-2 rounded bg-amber-900/40 px-2 py-0.5 text-amber-200">
+                {record.materiais_pendentes_revisao} pendente(s) de revisão
+              </span>
+            ) : null}
+          </p>
+          {record.materiais.length === 0 ? (
+            <p className="mt-2 text-sm text-shell-muted">
+              Nenhum material registrado.
+            </p>
+          ) : (
+            <ul className="mt-2 space-y-1 text-sm text-shell-text">
+              {record.materiais.map((m) => (
+                <li key={m.id ?? `${m.categoria_docx}-${m.item_num}`}>
+                  <span className="font-mono">
+                    [{m.categoria_docx === "informatica" ? "INF" : "GER"} {m.item_num}]
+                  </span>{" "}
+                  <strong>{m.tipo_nome}</strong> — {m.descricao}
+                  {m.revisado ? null : (
+                    <span className="ml-2 text-xs text-amber-300">
+                      (revisão pendente)
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="rounded-xl border border-shell-border bg-shell-surface p-5 md:col-span-2">
+          <p className="text-xs uppercase tracking-[0.1em] text-shell-muted">
             Observações e assinatura
           </p>
           <p className="mt-2 whitespace-pre-wrap text-shell-text">
