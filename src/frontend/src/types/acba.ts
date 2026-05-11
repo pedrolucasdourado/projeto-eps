@@ -1,7 +1,30 @@
+export type TestemunhaTipo = "geral" | "arrombamento";
+
+/**
+ * Especialização exclusiva da testemunha de arrombamento (Art. 245 §4º).
+ * Persistida na sub-classe `acba_testemunhas_arrombamento`.
+ */
+export type TestemunhaArrombamentoExtras = {
+  observacoes: string;
+};
+
+/**
+ * Super-classe `acba_testemunhas`. Campos comuns a toda testemunha
+ * (nome, cpf, rg, filiação, endereço); cidade e telefone são preenchidos
+ * apenas para testemunhas gerais; `arrombamento` (com observações) é
+ * preenchido apenas para testemunhas vizinhas (§4º).
+ */
 export type TestemunhaItem = {
+  id?: number;
+  tipo: TestemunhaTipo;
   nome: string;
-  documento: string;
-  contato: string;
+  cpf: string;
+  rg: string;
+  filiacao: string;
+  endereco: string;
+  cidade?: string | null;
+  telefone?: string | null;
+  arrombamento?: TestemunhaArrombamentoExtras | null;
 };
 
 export type AgenteBrief = {
@@ -73,10 +96,29 @@ export type AcbaFormPayload = {
   fundamento_legal: string;
   endereco_busca: string;
   alvo_busca: string;
+  nome_vara_criminal: string;
+  nome_juiz: string;
   assinatura_responsavel: string;
   observacoes: string;
   equipe_id: number;
   testemunhas: TestemunhaItem[];
+  /** Bloco do Art. 245 §§ 2º, 3º e 4º do CPP. */
+  arrombamento_245_2: boolean;
+  arrombamento_245_2_obs: string;
+  forca_coisas_245_3: boolean;
+  forca_coisas_245_3_obs: string;
+  morador_ausente_245_4: boolean;
+  morador_ausente_245_4_obs: string;
+  /**
+   * Qualificação do morador presente. Aparece no formulário apenas quando
+   * `morador_ausente_245_4 === false`; nesse caso TODOS os campos abaixo
+   * são obrigatórios. Quando o morador estava ausente, ficam vazios.
+   */
+  morador_nome: string;
+  morador_cpf: string;
+  morador_rg: string;
+  morador_filiacao: string;
+  morador_telefone: string;
   /** Apenas no fluxo de criação — backend grava em transação junto com o ACBA. */
   materiais?: MaterialPayload[];
 };
@@ -157,4 +199,6 @@ export type DescribeResponse = {
   cache_hit: boolean;
   modelo: string;
   prompt_versao: string;
+  tipo_id_sugerido?: number | null;
+  tipo_nome_sugerido?: string | null;
 };

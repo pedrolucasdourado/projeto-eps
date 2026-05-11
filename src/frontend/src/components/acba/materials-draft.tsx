@@ -376,13 +376,26 @@ function DraftEditor({
         "/api/acba/ia/descrever-material",
         { method: "POST", body: form },
       );
-      update({
+      const patch: Partial<MaterialPayload> = {
         descricao: res.descricao,
         descricao_ia_raw: res.descricao,
         revisado: false,
-      });
+      };
+      let notaTipo = "";
+      if (res.tipo_id_sugerido) {
+        const sugerido = tipos.find((t) => t.id === res.tipo_id_sugerido);
+        if (sugerido) {
+          patch.tipo_id = sugerido.id;
+          patch.informatica =
+            sugerido.tabela_documento === "informatica"
+              ? value.informatica ?? emptyInformatica()
+              : null;
+          notaTipo = ` Tipo identificado: ${sugerido.nome}.`;
+        }
+      }
+      update(patch);
       setAiNote(
-        `Descrição gerada (modelo ${res.modelo}). Revise antes de marcar como revisado.`,
+        `Descrição gerada (modelo ${res.modelo}).${notaTipo} Revise antes de marcar como revisado.`,
       );
       if (fileRef.current) fileRef.current.value = "";
       setFiles([]);
@@ -401,6 +414,39 @@ function DraftEditor({
     <div className="rounded-xl border border-shell-accent/60 bg-shell-surface p-4 space-y-3">
       <p className="text-sm font-semibold text-shell-text">
         {isNew ? "Novo material" : "Editar material"}
+      </p>
+
+      <div className="rounded border border-shell-accent/40 bg-shell-bg p-3 space-y-2">
+        <p className="text-xs uppercase tracking-[0.1em] text-shell-muted">
+          1. Identificação automática com IA (Gemini)
+        </p>
+        <p className="text-xs text-shell-muted">
+          Envie imagens do item. A IA escolhe o <strong>tipo de material</strong>{" "}
+          (entre os cadastrados) e preenche a descrição. As imagens vão direto
+          ao modelo e não são armazenadas.
+        </p>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleFiles}
+          className="text-xs text-shell-muted"
+        />
+        <button
+          type="button"
+          onClick={() => void describe()}
+          disabled={describing || files.length === 0}
+          className="rounded border border-shell-accent/50 bg-shell-accentBlue px-3 py-1 text-xs text-shell-text disabled:opacity-60"
+        >
+          {describing ? "Analisando..." : "Identificar tipo e gerar descrição"}
+        </button>
+        {aiError ? <p className="text-xs text-red-300">{aiError}</p> : null}
+        {aiNote ? <p className="text-xs text-green-300">{aiNote}</p> : null}
+      </div>
+
+      <p className="text-xs uppercase tracking-[0.1em] text-shell-muted">
+        2. Confira / ajuste os dados
       </p>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className="text-sm md:col-span-2">
@@ -498,33 +544,6 @@ function DraftEditor({
           onUpdate={updateInformatica}
         />
       ) : null}
-
-      <div className="rounded border border-shell-border p-3 space-y-2">
-        <p className="text-xs uppercase tracking-[0.1em] text-shell-muted">
-          Descrição por IA (Gemini)
-        </p>
-        <p className="text-xs text-shell-muted">
-          As imagens vão direto à IA e são descartadas (não persistem).
-        </p>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleFiles}
-          className="text-xs text-shell-muted"
-        />
-        <button
-          type="button"
-          onClick={() => void describe()}
-          disabled={describing || files.length === 0}
-          className="rounded border border-shell-accent/50 bg-shell-accentBlue px-3 py-1 text-xs text-shell-text disabled:opacity-60"
-        >
-          {describing ? "Gerando..." : "Gerar descrição com IA"}
-        </button>
-        {aiError ? <p className="text-xs text-red-300">{aiError}</p> : null}
-        {aiNote ? <p className="text-xs text-green-300">{aiNote}</p> : null}
-      </div>
 
       <label className="flex items-center gap-2 text-sm text-shell-text">
         <input

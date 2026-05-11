@@ -72,16 +72,92 @@ def _agentes_lines(detail: AcbaDetail) -> str:
 
 
 def _testemunhas_lines(detail: AcbaDetail) -> str:
+    """Texto multilinhas para o campo `{{ testemunhas_texto }}` no template.
+
+    Cada testemunha aparece com sua qualificação completa. Testemunhas de
+    arrombamento (Art. 245 §4º do CPP) carregam um campo extra de observações.
+    """
     if not detail.testemunhas:
         return "—"
-    return "\n".join(
-        f"{i}. {t.get('nome','')} — Doc.: {t.get('documento','')} — Contato: {t.get('contato','')}"
-        for i, t in enumerate(detail.testemunhas, start=1)
-    )
+    lines: list[str] = []
+    for i, t in enumerate(detail.testemunhas, start=1):
+        head = (
+            f"{i}. {t.get('nome','')} — CPF: {t.get('cpf','—')} "
+            f"— RG: {t.get('rg','—')}"
+        )
+        if t.get("tipo") == "arrombamento":
+            head += " — TESTEMUNHA DE ARROMBAMENTO (Art. 245 §4º CPP)"
+        lines.append(head)
+        lines.append(f"   Filiação: {t.get('filiacao','—')}")
+        lines.append(f"   Endereço: {t.get('endereco','—')}")
+        if t.get("tipo") == "geral":
+            if t.get("cidade"):
+                lines.append(f"   Cidade: {t['cidade']}")
+            if t.get("telefone"):
+                lines.append(f"   Telefone: {t['telefone']}")
+        else:
+            arr = t.get("arrombamento") or {}
+            obs = (arr.get("observacoes") or "").strip()
+            if obs:
+                lines.append(f"   Obs.: {obs}")
+    return "\n".join(lines)
+
+
+def _testemunhas_split(
+    detail: AcbaDetail,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Separa as testemunhas em (gerais, arrombamento) para uso em tabelas."""
+    gerais: list[dict[str, Any]] = []
+    arrombamento: list[dict[str, Any]] = []
+    for t in detail.testemunhas:
+        base = {
+            "nome": t.get("nome", ""),
+            "cpf": t.get("cpf", "—"),
+            "rg": t.get("rg", "—"),
+            "filiacao": t.get("filiacao", "—"),
+            "endereco": t.get("endereco", "—"),
+        }
+        if t.get("tipo") == "arrombamento":
+            extras = t.get("arrombamento") or {}
+            arrombamento.append(
+                {**base, "observacoes": (extras.get("observacoes") or "—")}
+            )
+        else:
+            gerais.append(
+                {
+                    **base,
+                    "cidade": t.get("cidade") or "—",
+                    "telefone": t.get("telefone") or "—",
+                }
+            )
+    return gerais, arrombamento
+
+
+def _morador_context(detail: AcbaDetail) -> dict[str, Any]:
+    """Bloco do morador presente. Quando o morador estava ausente (§4º),
+    todos os campos vão como '—' e a flag `morador_presente` fica False."""
+    if detail.morador_ausente_245_4 or not detail.morador_nome.strip():
+        return {
+            "morador_presente": False,
+            "morador_nome": "—",
+            "morador_cpf": "—",
+            "morador_rg": "—",
+            "morador_filiacao": "—",
+            "morador_telefone": "—",
+        }
+    return {
+        "morador_presente": True,
+        "morador_nome": detail.morador_nome,
+        "morador_cpf": detail.morador_cpf or "—",
+        "morador_rg": detail.morador_rg or "—",
+        "morador_filiacao": detail.morador_filiacao or "—",
+        "morador_telefone": detail.morador_telefone or "—",
+    }
 
 
 def build_context(detail: AcbaDetail, doc: DocxTemplate) -> dict[str, Any]:
     informatica, geral = _split_materiais(detail)
+    testemunhas_gerais, testemunhas_arrombamento = _testemunhas_split(detail)
 
     def _enrich(m: dict) -> dict:
         out = dict(m)
@@ -89,6 +165,7 @@ def build_context(detail: AcbaDetail, doc: DocxTemplate) -> dict[str, Any]:
         return out
 
     return {
+        **_morador_context(detail),
         "processo_numero": detail.processo_numero,
         "protocolo_numero": detail.protocolo_numero,
         "processo_descricao": detail.processo_descricao or "—",
@@ -109,12 +186,25 @@ def build_context(detail: AcbaDetail, doc: DocxTemplate) -> dict[str, Any]:
         "fundamento_legal": detail.fundamento_legal,
         "endereco_busca": detail.endereco_busca,
         "alvo_busca": detail.alvo_busca,
+        "nome_vara_criminal": detail.nome_vara_criminal or "—",
+        "nome_juiz": detail.nome_juiz or "—",
         "equipe_numero": detail.equipe_numero,
         "equipe_nome": detail.equipe_nome or "—",
         "equipe_texto": _agentes_lines(detail),
         "testemunhas_texto": _testemunhas_lines(detail),
+        "testemunhas_gerais": testemunhas_gerais,
+        "testemunhas_arrombamento": testemunhas_arrombamento,
         "observacoes": detail.observacoes or "—",
         "assinatura_responsavel": detail.assinatura_responsavel,
+        # Art. 245 §§ 2º, 3º e 4º do CPP — flags + observações.
+        # No template DOCX use `Sim`/`Não` para os booleans:
+        #   {% if arrombamento_245_2 %}Sim{% else %}Não{% endif %}
+        "arrombamento_245_2": detail.arrombamento_245_2,
+        "arrombamento_245_2_obs": detail.arrombamento_245_2_obs or "—",
+        "forca_coisas_245_3": detail.forca_coisas_245_3,
+        "forca_coisas_245_3_obs": detail.forca_coisas_245_3_obs or "—",
+        "morador_ausente_245_4": detail.morador_ausente_245_4,
+        "morador_ausente_245_4_obs": detail.morador_ausente_245_4_obs or "—",
         "materiais_informatica": [_enrich(m) for m in informatica],
         "materiais_geral": [_enrich(m) for m in geral],
     }

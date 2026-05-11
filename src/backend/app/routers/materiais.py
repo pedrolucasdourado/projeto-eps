@@ -17,7 +17,7 @@ from fastapi import (
     status,
 )
 
-from app.repositories import materiais_repository as repo
+from app.repositories import catalog_repo, materiais_repository as repo
 from app.routers.auth import get_authenticated_user
 from pydantic import BaseModel, Field
 
@@ -36,6 +36,10 @@ class RevisarBody(BaseModel):
 from app.services.acba_service import AcbaService
 from app.services.gemini_vision_service import descrever_material
 from app.services.materiais_service import MaterialService
+
+
+def _tipos_ativos_para_ia() -> list[dict]:
+    return [t for t in catalog_repo.list_tipos_material() if t.get("ativo")]
 
 
 router = APIRouter()
@@ -81,7 +85,10 @@ async def descrever_anonimo(
         )
     try:
         result = descrever_material(
-            blobs, mime_types=mimes, instrucoes_extra=instrucoes_extra
+            blobs,
+            mime_types=mimes,
+            instrucoes_extra=instrucoes_extra,
+            tipos_disponiveis=_tipos_ativos_para_ia(),
         )
     except RuntimeError as exc:
         raise HTTPException(
@@ -99,6 +106,8 @@ async def descrever_anonimo(
         "cache_hit": False,
         "modelo": result.modelo,
         "prompt_versao": result.prompt_versao,
+        "tipo_id_sugerido": result.tipo_id_sugerido,
+        "tipo_nome_sugerido": result.tipo_nome_sugerido,
     }
 
 
@@ -239,7 +248,10 @@ async def descrever(
 
     try:
         result = descrever_material(
-            blobs, mime_types=mimes, instrucoes_extra=instrucoes_extra
+            blobs,
+            mime_types=mimes,
+            instrucoes_extra=instrucoes_extra,
+            tipos_disponiveis=_tipos_ativos_para_ia(),
         )
     except RuntimeError as exc:
         raise HTTPException(
@@ -274,6 +286,8 @@ async def descrever(
         "cache_hit": cache_hit,
         "modelo": result.modelo,
         "prompt_versao": result.prompt_versao,
+        "tipo_id_sugerido": result.tipo_id_sugerido,
+        "tipo_nome_sugerido": result.tipo_nome_sugerido,
     }
 
 

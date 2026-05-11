@@ -1,6 +1,6 @@
 from typing import Any
 
-from psycopg2.extras import Json, RealDictCursor
+from psycopg2.extras import RealDictCursor
 
 from app.db import execute_query, fetch_all, fetch_one, get_connection
 from app.repositories import materiais_repository
@@ -27,19 +27,128 @@ _INSERT_ACBA_SQL = """
         data_lavratura, hora_lavratura,
         tipo_procedimento_id,
         procedimento_numero, fundamento_legal, endereco_busca, alvo_busca,
+        nome_vara_criminal, nome_juiz,
         assinatura_responsavel, observacoes,
-        equipe_id, testemunhas, created_by_user_id
+        arrombamento_245_2, arrombamento_245_2_obs,
+        forca_coisas_245_3, forca_coisas_245_3_obs,
+        morador_ausente_245_4, morador_ausente_245_4_obs,
+        morador_nome, morador_cpf, morador_rg,
+        morador_filiacao, morador_telefone,
+        equipe_id, created_by_user_id
     ) VALUES (
         %(processo_numero)s, %(protocolo_numero)s,
         %(unidade_id)s, %(delegacia_id)s, %(cidade_id)s,
         %(data_lavratura)s, %(hora_lavratura)s,
         %(tipo_procedimento_id)s,
         %(procedimento_numero)s, %(fundamento_legal)s, %(endereco_busca)s, %(alvo_busca)s,
+        %(nome_vara_criminal)s, %(nome_juiz)s,
         %(assinatura_responsavel)s, %(observacoes)s,
-        %(equipe_id)s, %(testemunhas)s, %(created_by_user_id)s
+        %(arrombamento_245_2)s, %(arrombamento_245_2_obs)s,
+        %(forca_coisas_245_3)s, %(forca_coisas_245_3_obs)s,
+        %(morador_ausente_245_4)s, %(morador_ausente_245_4_obs)s,
+        %(morador_nome)s, %(morador_cpf)s, %(morador_rg)s,
+        %(morador_filiacao)s, %(morador_telefone)s,
+        %(equipe_id)s, %(created_by_user_id)s
     )
     RETURNING id
 """
+
+
+_INSERT_TESTEMUNHA_SQL = """
+    INSERT INTO acba_testemunhas
+        (acba_id, nome, cpf, rg, filiacao, endereco,
+         cidade, telefone, tipo, ordem)
+    VALUES (
+        %(acba_id)s, %(nome)s, %(cpf)s, %(rg)s,
+        %(filiacao)s, %(endereco)s,
+        %(cidade)s, %(telefone)s, %(tipo)s, %(ordem)s
+    )
+    RETURNING id
+"""
+
+
+_INSERT_TESTEMUNHA_ARROMBAMENTO_SQL = """
+    INSERT INTO acba_testemunhas_arrombamento (testemunha_id, observacoes)
+    VALUES (%(testemunha_id)s, %(observacoes)s)
+"""
+
+
+def _insert_testemunhas_with_cursor(
+    cur: Any, acba_id: int, testemunhas: list[dict[str, Any]]
+) -> None:
+    """Insere super-classe + parcial exclusiva em uma única transação.
+
+    `testemunhas` é a lista já validada pelo schema. Para testemunhas gerais
+    grava `cidade` e `telefone` (nullable); para testemunhas de arrombamento
+    grava `arrombamento.observacoes` na sub-classe.
+    """
+    for ordem, raw in enumerate(testemunhas):
+        tipo = raw.get("tipo", "geral")
+        is_arrombamento = tipo == "arrombamento"
+        cur.execute(
+            _INSERT_TESTEMUNHA_SQL,
+            {
+                "acba_id": acba_id,
+                "nome": raw["nome"],
+                "cpf": raw["cpf"],
+                "rg": raw["rg"],
+                "filiacao": raw["filiacao"],
+                "endereco": raw["endereco"],
+                "cidade": None if is_arrombamento else raw.get("cidade") or None,
+                "telefone": None if is_arrombamento else raw.get("telefone") or None,
+                "tipo": tipo,
+                "ordem": ordem,
+            },
+        )
+        new = cur.fetchone()
+        if new is None:
+            raise RuntimeError("Falha ao inserir testemunha.")
+        if is_arrombamento:
+            extras = raw.get("arrombamento") or {}
+            cur.execute(
+                _INSERT_TESTEMUNHA_ARROMBAMENTO_SQL,
+                {
+                    "testemunha_id": int(new["id"]),
+                    "observacoes": str(extras.get("observacoes", "") or ""),
+                },
+            )
+
+
+def _list_testemunhas(acba_id: int) -> list[dict[str, Any]]:
+    """Lista as testemunhas do ACBA já com a especialização (LEFT JOIN)."""
+    rows = fetch_all(
+        """
+        SELECT t.id, t.nome, t.cpf, t.rg, t.filiacao, t.endereco,
+               t.cidade, t.telefone, t.tipo, t.ordem,
+               ta.observacoes AS arrombamento_observacoes
+        FROM acba_testemunhas t
+        LEFT JOIN acba_testemunhas_arrombamento ta
+            ON ta.testemunha_id = t.id
+        WHERE t.acba_id = %s
+        ORDER BY t.ordem, t.id
+        """,
+        (acba_id,),
+    )
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        item: dict[str, Any] = {
+            "id": r["id"],
+            "tipo": r["tipo"],
+            "nome": r["nome"],
+            "cpf": r["cpf"],
+            "rg": r["rg"],
+            "filiacao": r["filiacao"],
+            "endereco": r["endereco"],
+            "cidade": r["cidade"],
+            "telefone": r["telefone"],
+            "ordem": r["ordem"],
+        }
+        if r["tipo"] == "arrombamento":
+            item["arrombamento"] = {
+                "observacoes": r["arrombamento_observacoes"] or "",
+            }
+        out.append(item)
+    return out
 
 
 class AcbaRepository:
@@ -49,15 +158,14 @@ class AcbaRepository:
         materiais: list[dict[str, Any]],
         created_by_user_id: int,
     ) -> dict:
-        """Insere ACBA + materiais em uma única transação.
+        """Insere ACBA + testemunhas + materiais em uma única transação.
 
         `materiais` é uma lista de payloads já validados (formato igual ao
-        aceito por `materiais_repository.insert_material_with_cursor`)."""
-        params = {
-            **row,
-            "testemunhas": Json(row["testemunhas"]),
-            "created_by_user_id": created_by_user_id,
-        }
+        aceito por `materiais_repository.insert_material_with_cursor`).
+        `row['testemunhas']` é a lista já validada pelo schema (dicts com
+        `tipo` e, quando aplicável, `qualificacao`)."""
+        testemunhas = row.pop("testemunhas", []) or []
+        params = {**row, "created_by_user_id": created_by_user_id}
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(_INSERT_ACBA_SQL, params)
@@ -65,6 +173,7 @@ class AcbaRepository:
                 if fetched is None:
                     raise RuntimeError("Falha ao inserir ACBA.")
                 new_id = int(fetched["id"])
+                _insert_testemunhas_with_cursor(cur, new_id, testemunhas)
                 for mat in materiais:
                     materiais_repository.insert_material_with_cursor(
                         cur, new_id, mat
@@ -145,6 +254,7 @@ class AcbaRepository:
             (row["equipe_id"],),
         )
         row["agentes_equipe"] = agentes
+        row["testemunhas"] = _list_testemunhas(record_id)
         row["materiais"] = materiais_repository.list_by_acba(record_id)
         row["materiais_pendentes_revisao"] = (
             materiais_repository.count_pendentes_revisao(record_id)
@@ -152,37 +262,56 @@ class AcbaRepository:
         return row
 
     def update(self, record_id: int, row: dict[str, Any]) -> dict | None:
-        updated = fetch_one(
-            """
-            UPDATE acba_records SET
-                processo_numero = %(processo_numero)s,
-                protocolo_numero = %(protocolo_numero)s,
-                unidade_id = %(unidade_id)s,
-                delegacia_id = %(delegacia_id)s,
-                cidade_id = %(cidade_id)s,
-                data_lavratura = %(data_lavratura)s,
-                hora_lavratura = %(hora_lavratura)s,
-                tipo_procedimento_id = %(tipo_procedimento_id)s,
-                procedimento_numero = %(procedimento_numero)s,
-                fundamento_legal = %(fundamento_legal)s,
-                endereco_busca = %(endereco_busca)s,
-                alvo_busca = %(alvo_busca)s,
-                assinatura_responsavel = %(assinatura_responsavel)s,
-                observacoes = %(observacoes)s,
-                equipe_id = %(equipe_id)s,
-                testemunhas = %(testemunhas)s,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = %(record_id)s
-            RETURNING id
-            """,
-            {
-                **row,
-                "record_id": record_id,
-                "testemunhas": Json(row["testemunhas"]),
-            },
-        )
-        if not updated:
-            return None
+        testemunhas = row.pop("testemunhas", []) or []
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    UPDATE acba_records SET
+                        processo_numero = %(processo_numero)s,
+                        protocolo_numero = %(protocolo_numero)s,
+                        unidade_id = %(unidade_id)s,
+                        delegacia_id = %(delegacia_id)s,
+                        cidade_id = %(cidade_id)s,
+                        data_lavratura = %(data_lavratura)s,
+                        hora_lavratura = %(hora_lavratura)s,
+                        tipo_procedimento_id = %(tipo_procedimento_id)s,
+                        procedimento_numero = %(procedimento_numero)s,
+                        fundamento_legal = %(fundamento_legal)s,
+                        endereco_busca = %(endereco_busca)s,
+                        alvo_busca = %(alvo_busca)s,
+                        nome_vara_criminal = %(nome_vara_criminal)s,
+                        nome_juiz = %(nome_juiz)s,
+                        assinatura_responsavel = %(assinatura_responsavel)s,
+                        observacoes = %(observacoes)s,
+                        arrombamento_245_2 = %(arrombamento_245_2)s,
+                        arrombamento_245_2_obs = %(arrombamento_245_2_obs)s,
+                        forca_coisas_245_3 = %(forca_coisas_245_3)s,
+                        forca_coisas_245_3_obs = %(forca_coisas_245_3_obs)s,
+                        morador_ausente_245_4 = %(morador_ausente_245_4)s,
+                        morador_ausente_245_4_obs = %(morador_ausente_245_4_obs)s,
+                        morador_nome = %(morador_nome)s,
+                        morador_cpf = %(morador_cpf)s,
+                        morador_rg = %(morador_rg)s,
+                        morador_filiacao = %(morador_filiacao)s,
+                        morador_telefone = %(morador_telefone)s,
+                        equipe_id = %(equipe_id)s,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = %(record_id)s
+                    RETURNING id
+                    """,
+                    {**row, "record_id": record_id},
+                )
+                updated = cur.fetchone()
+                if not updated:
+                    return None
+                # Substitui todas as testemunhas (ON DELETE CASCADE remove a
+                # qualificação de arrombamento associada).
+                cur.execute(
+                    "DELETE FROM acba_testemunhas WHERE acba_id = %s",
+                    (record_id,),
+                )
+                _insert_testemunhas_with_cursor(cur, record_id, testemunhas)
         return self.get_by_id(record_id)
 
     def delete(self, record_id: int) -> None:

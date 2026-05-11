@@ -174,6 +174,24 @@ export default function AcbaDetailPage() {
           <p className="mt-2 whitespace-pre-wrap text-shell-muted">
             {record.endereco_busca}
           </p>
+          {record.nome_vara_criminal || record.nome_juiz ? (
+            <div className="mt-3 grid grid-cols-1 gap-2 border-t border-shell-border pt-3 md:grid-cols-2">
+              <div>
+                <p className="text-xs uppercase tracking-[0.1em] text-shell-muted">
+                  Vara criminal
+                </p>
+                <p className="text-shell-text">
+                  {record.nome_vara_criminal || "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.1em] text-shell-muted">
+                  Juiz(a) que expediu o mandado
+                </p>
+                <p className="text-shell-text">{record.nome_juiz || "—"}</p>
+              </div>
+            </div>
+          ) : null}
         </div>
         <div className="rounded-xl border border-shell-border bg-shell-surface p-5 md:col-span-2">
           <p className="text-xs uppercase tracking-[0.1em] text-shell-muted">
@@ -183,6 +201,56 @@ export default function AcbaDetailPage() {
             {record.fundamento_legal}
           </p>
         </div>
+        {record.arrombamento_245_2 ||
+        record.forca_coisas_245_3 ||
+        record.morador_ausente_245_4 ? (
+          <div className="rounded-xl border border-shell-border bg-shell-surface p-5 md:col-span-2">
+            <p className="text-xs uppercase tracking-[0.1em] text-shell-muted">
+              Ocorrências da diligência (Art. 245 §§ 2º, 3º e 4º do CPP)
+            </p>
+            <ul className="mt-2 space-y-3 text-sm text-shell-text">
+              {record.arrombamento_245_2 ? (
+                <li>
+                  <p className="font-medium">
+                    §2º — Arrombamento de porta / entrada forçada por
+                    desobediência do morador.
+                  </p>
+                  {record.arrombamento_245_2_obs ? (
+                    <p className="mt-1 whitespace-pre-wrap text-shell-muted">
+                      {record.arrombamento_245_2_obs}
+                    </p>
+                  ) : null}
+                </li>
+              ) : null}
+              {record.forca_coisas_245_3 ? (
+                <li>
+                  <p className="font-medium">
+                    §3º — Emprego de força contra coisas no interior da casa por
+                    recalcitrância do morador.
+                  </p>
+                  {record.forca_coisas_245_3_obs ? (
+                    <p className="mt-1 whitespace-pre-wrap text-shell-muted">
+                      {record.forca_coisas_245_3_obs}
+                    </p>
+                  ) : null}
+                </li>
+              ) : null}
+              {record.morador_ausente_245_4 ? (
+                <li>
+                  <p className="font-medium">
+                    §4º — Morador ausente; arrombamento de porta e emprego de
+                    força contra coisas.
+                  </p>
+                  {record.morador_ausente_245_4_obs ? (
+                    <p className="mt-1 whitespace-pre-wrap text-shell-muted">
+                      {record.morador_ausente_245_4_obs}
+                    </p>
+                  ) : null}
+                </li>
+              ) : null}
+            </ul>
+          </div>
+        ) : null}
         <div className="rounded-xl border border-shell-border bg-shell-surface p-5 md:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs uppercase tracking-[0.1em] text-shell-muted">
@@ -250,6 +318,78 @@ export default function AcbaDetailPage() {
             </ul>
           )}
         </div>
+        {!record.morador_ausente_245_4 &&
+        (record.morador_nome ||
+          record.morador_cpf ||
+          record.morador_rg ||
+          record.morador_filiacao ||
+          record.morador_telefone) ? (
+          <div className="rounded-xl border border-shell-border bg-shell-surface p-5 md:col-span-2">
+            <p className="text-xs uppercase tracking-[0.1em] text-shell-muted">
+              Morador presente (Art. 245, caput e §1º do CPP)
+            </p>
+            <div className="mt-2 grid grid-cols-1 gap-1 text-sm text-shell-text md:grid-cols-2">
+              <span className="md:col-span-2">
+                <strong>{record.morador_nome || "—"}</strong>
+              </span>
+              <span>CPF: {record.morador_cpf || "—"}</span>
+              <span>RG: {record.morador_rg || "—"}</span>
+              <span className="md:col-span-2">
+                Filiação: {record.morador_filiacao || "—"}
+              </span>
+              <span>Telefone: {record.morador_telefone || "—"}</span>
+            </div>
+          </div>
+        ) : null}
+        {record.testemunhas && record.testemunhas.length > 0 ? (
+          <div className="rounded-xl border border-shell-border bg-shell-surface p-5 md:col-span-2">
+            <p className="text-xs uppercase tracking-[0.1em] text-shell-muted">
+              Testemunhas
+            </p>
+            <ul className="mt-2 space-y-3 text-sm text-shell-text">
+              {record.testemunhas.map((t, idx) => (
+                <li
+                  key={t.id ?? `${t.nome}-${idx}`}
+                  className={
+                    t.tipo === "arrombamento"
+                      ? "rounded border border-shell-accent/40 p-3"
+                      : ""
+                  }
+                >
+                  <p>
+                    <strong>{t.nome}</strong>
+                    {t.tipo === "arrombamento" ? (
+                      <span className="ml-2 rounded bg-shell-accentBlue px-2 py-0.5 text-xs text-shell-text">
+                        Testemunha de arrombamento (§4º)
+                      </span>
+                    ) : null}
+                  </p>
+                  <div className="mt-1 grid grid-cols-1 gap-1 text-xs text-shell-muted md:grid-cols-2">
+                    <span>CPF: {t.cpf || "—"}</span>
+                    <span>RG: {t.rg || "—"}</span>
+                    <span className="md:col-span-2">
+                      Filiação: {t.filiacao || "—"}
+                    </span>
+                    <span className="md:col-span-2">
+                      Endereço: {t.endereco || "—"}
+                    </span>
+                    {t.tipo === "geral" ? (
+                      <>
+                        <span>Cidade: {t.cidade || "—"}</span>
+                        <span>Telefone: {t.telefone || "—"}</span>
+                      </>
+                    ) : null}
+                    {t.tipo === "arrombamento" && t.arrombamento?.observacoes ? (
+                      <span className="md:col-span-2 whitespace-pre-wrap">
+                        Obs.: {t.arrombamento.observacoes}
+                      </span>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <div className="rounded-xl border border-shell-border bg-shell-surface p-5 md:col-span-2">
           <p className="text-xs uppercase tracking-[0.1em] text-shell-muted">
             Observações e assinatura

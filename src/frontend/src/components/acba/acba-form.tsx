@@ -19,6 +19,7 @@ import type {
   MaterialPayload,
   Processo,
   TestemunhaItem,
+  TestemunhaTipo,
 } from "@/types/acba";
 
 import { MaterialsDraft } from "./materials-draft";
@@ -38,6 +39,20 @@ function readonlyClass() {
   return "w-full rounded-lg border border-shell-border bg-shell-bg/60 px-3 py-2 text-sm text-shell-muted";
 }
 
+function emptyTestemunha(tipo: TestemunhaTipo = "geral"): TestemunhaItem {
+  return {
+    tipo,
+    nome: "",
+    cpf: "",
+    rg: "",
+    filiacao: "",
+    endereco: "",
+    cidade: tipo === "geral" ? "" : null,
+    telefone: tipo === "geral" ? "" : null,
+    arrombamento: tipo === "arrombamento" ? { observacoes: "" } : null,
+  };
+}
+
 function emptyPayload(): AcbaFormPayload {
   return {
     processo_numero: "",
@@ -52,15 +67,45 @@ function emptyPayload(): AcbaFormPayload {
     fundamento_legal: "",
     endereco_busca: "",
     alvo_busca: "",
+    nome_vara_criminal: "",
+    nome_juiz: "",
     assinatura_responsavel: "",
     observacoes: "",
     equipe_id: 0,
     testemunhas: [],
+    arrombamento_245_2: false,
+    arrombamento_245_2_obs: "",
+    forca_coisas_245_3: false,
+    forca_coisas_245_3_obs: "",
+    morador_ausente_245_4: false,
+    morador_ausente_245_4_obs: "",
+    morador_nome: "",
+    morador_cpf: "",
+    morador_rg: "",
+    morador_filiacao: "",
+    morador_telefone: "",
     materiais: [],
   };
 }
 
 function detailToPayload(d: AcbaDetail): AcbaFormPayload {
+  const rawTestemunhas = (d.testemunhas as TestemunhaItem[]) ?? [];
+  const testemunhas: TestemunhaItem[] = rawTestemunhas.map((t) => {
+    const isArr = t.tipo === "arrombamento";
+    return {
+      tipo: t.tipo ?? "geral",
+      nome: t.nome ?? "",
+      cpf: t.cpf ?? "",
+      rg: t.rg ?? "",
+      filiacao: t.filiacao ?? "",
+      endereco: t.endereco ?? "",
+      cidade: isArr ? null : t.cidade ?? "",
+      telefone: isArr ? null : t.telefone ?? "",
+      arrombamento: isArr
+        ? { observacoes: t.arrombamento?.observacoes ?? "" }
+        : null,
+    };
+  });
   return {
     processo_numero: d.processo_numero,
     protocolo_numero: d.protocolo_numero,
@@ -75,10 +120,23 @@ function detailToPayload(d: AcbaDetail): AcbaFormPayload {
     fundamento_legal: d.fundamento_legal,
     endereco_busca: d.endereco_busca,
     alvo_busca: d.alvo_busca,
+    nome_vara_criminal: d.nome_vara_criminal ?? "",
+    nome_juiz: d.nome_juiz ?? "",
     assinatura_responsavel: d.assinatura_responsavel,
     observacoes: d.observacoes,
     equipe_id: d.equipe_id,
-    testemunhas: (d.testemunhas as TestemunhaItem[]) ?? [],
+    testemunhas,
+    arrombamento_245_2: d.arrombamento_245_2 ?? false,
+    arrombamento_245_2_obs: d.arrombamento_245_2_obs ?? "",
+    forca_coisas_245_3: d.forca_coisas_245_3 ?? false,
+    forca_coisas_245_3_obs: d.forca_coisas_245_3_obs ?? "",
+    morador_ausente_245_4: d.morador_ausente_245_4 ?? false,
+    morador_ausente_245_4_obs: d.morador_ausente_245_4_obs ?? "",
+    morador_nome: d.morador_nome ?? "",
+    morador_cpf: d.morador_cpf ?? "",
+    morador_rg: d.morador_rg ?? "",
+    morador_filiacao: d.morador_filiacao ?? "",
+    morador_telefone: d.morador_telefone ?? "",
   };
 }
 
@@ -192,6 +250,42 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
     setForm({ ...form, testemunhas: next });
   }
 
+  function setTestemunhaTipo(i: number, tipo: TestemunhaTipo) {
+    const next = [...form.testemunhas];
+    const current = next[i];
+    next[i] = {
+      ...current,
+      tipo,
+      cidade: tipo === "geral" ? current.cidade ?? "" : null,
+      telefone: tipo === "geral" ? current.telefone ?? "" : null,
+      arrombamento:
+        tipo === "arrombamento"
+          ? current.arrombamento ?? { observacoes: "" }
+          : null,
+    };
+    setForm({ ...form, testemunhas: next });
+  }
+
+  function updateArrombamentoObs(i: number, observacoes: string) {
+    const next = [...form.testemunhas];
+    const current = next[i];
+    next[i] = { ...current, arrombamento: { observacoes } };
+    setForm({ ...form, testemunhas: next });
+  }
+
+  function removeTestemunha(i: number) {
+    const next = form.testemunhas.filter((_, idx) => idx !== i);
+    setForm({ ...form, testemunhas: next });
+  }
+
+  function ensureArrombamentoWitness() {
+    if (form.testemunhas.some((t) => t.tipo === "arrombamento")) return;
+    setForm((prev) => ({
+      ...prev,
+      testemunhas: [...prev.testemunhas, emptyTestemunha("arrombamento")],
+    }));
+  }
+
   function openProcessoModal() {
     setNewProcessoNumero("");
     setNewProcessoDescricao("");
@@ -282,8 +376,111 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
       );
       return;
     }
+    if (form.arrombamento_245_2 && !form.arrombamento_245_2_obs.trim()) {
+      setError(
+        "Descreva as circunstâncias do arrombamento de porta (Art. 245, §2º do CPP).",
+      );
+      return;
+    }
+    if (form.forca_coisas_245_3 && !form.forca_coisas_245_3_obs.trim()) {
+      setError(
+        "Descreva o emprego de força contra coisas (Art. 245, §3º do CPP).",
+      );
+      return;
+    }
+    if (form.morador_ausente_245_4 && !form.morador_ausente_245_4_obs.trim()) {
+      setError(
+        "Descreva as circunstâncias da diligência com morador ausente (Art. 245, §4º do CPP).",
+      );
+      return;
+    }
+    // Cada testemunha exige a qualificação completa (nome, cpf, rg,
+    // filiação, endereço); testemunhas gerais também precisam de cidade
+    // e telefone.
+    const testemunhaInvalida = form.testemunhas.find((t) => {
+      if (
+        t.nome.trim().length < 2 ||
+        t.cpf.trim().length < 3 ||
+        t.rg.trim().length < 1 ||
+        t.filiacao.trim().length < 2 ||
+        t.endereco.trim().length < 5
+      ) {
+        return true;
+      }
+      if (t.tipo === "geral") {
+        if (
+          (t.cidade ?? "").trim().length < 2 ||
+          (t.telefone ?? "").trim().length < 4
+        ) {
+          return true;
+        }
+      }
+      return false;
+    });
+    if (testemunhaInvalida) {
+      setError(
+        testemunhaInvalida.tipo === "arrombamento"
+          ? "Toda testemunha de arrombamento (§4º) exige nome, CPF, RG, filiação e endereço."
+          : "Toda testemunha exige nome, CPF, RG, filiação, endereço, cidade e telefone.",
+      );
+      return;
+    }
+    if (
+      form.morador_ausente_245_4 &&
+      !form.testemunhas.some((t) => t.tipo === "arrombamento")
+    ) {
+      setError(
+        "Em diligências com morador ausente (Art. 245, §4º do CPP) é " +
+          "obrigatório adicionar ao menos uma testemunha vizinha qualificada.",
+      );
+      return;
+    }
+    // Quando o morador NÃO estava ausente, a qualificação do morador é
+    // obrigatória.
+    if (!form.morador_ausente_245_4) {
+      if (
+        form.morador_nome.trim().length < 2 ||
+        form.morador_cpf.trim().length < 3 ||
+        form.morador_rg.trim().length < 1 ||
+        form.morador_filiacao.trim().length < 2 ||
+        form.morador_telefone.trim().length < 4
+      ) {
+        setError(
+          "Informe nome, CPF, RG, filiação e telefone do morador presente.",
+        );
+        return;
+      }
+    }
+    // Sanitiza: testemunhas gerais não devem carregar `arrombamento`, e
+    // vice-versa; ao deixar §4º ativo, o backend já limpa os campos do
+    // morador presente, mas zeramos aqui também por segurança.
+    const testemunhasFinal: TestemunhaItem[] = form.testemunhas.map((t) =>
+      t.tipo === "arrombamento"
+        ? {
+            ...t,
+            cidade: null,
+            telefone: null,
+            arrombamento: t.arrombamento ?? { observacoes: "" },
+          }
+        : { ...t, arrombamento: null },
+    );
+    const morador = form.morador_ausente_245_4
+      ? {
+          morador_nome: "",
+          morador_cpf: "",
+          morador_rg: "",
+          morador_filiacao: "",
+          morador_telefone: "",
+        }
+      : {
+          morador_nome: form.morador_nome,
+          morador_cpf: form.morador_cpf,
+          morador_rg: form.morador_rg,
+          morador_filiacao: form.morador_filiacao,
+          morador_telefone: form.morador_telefone,
+        };
     try {
-      await onSubmit(form);
+      await onSubmit({ ...form, ...morador, testemunhas: testemunhasFinal });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar.");
     }
@@ -598,8 +795,236 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
               required
             />
           </label>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <label className="text-sm block">
+              <span className="text-shell-muted">Vara criminal</span>
+              <input
+                className={`${inputClass()} mt-1`}
+                value={form.nome_vara_criminal}
+                onChange={(e) =>
+                  setForm({ ...form, nome_vara_criminal: e.target.value })
+                }
+                placeholder="Ex.: 2ª Vara Criminal de Brasília/DF"
+              />
+            </label>
+            <label className="text-sm block">
+              <span className="text-shell-muted">Juiz(a) que expediu o mandado</span>
+              <input
+                className={`${inputClass()} mt-1`}
+                value={form.nome_juiz}
+                onChange={(e) => setForm({ ...form, nome_juiz: e.target.value })}
+                placeholder="Ex.: Dr(a). Nome do(a) Juiz(a)"
+              />
+            </label>
+          </div>
         </div>,
       )}
+
+      {section(
+        "Ocorrências da diligência (Art. 245 §§ 2º, 3º e 4º do CPP)",
+        <div className="space-y-4">
+          <p className="text-xs text-shell-muted">
+            Marque a(s) hipótese(s) que se aplicaram à diligência. Quando uma
+            caixa for marcada, é obrigatório descrever as circunstâncias no
+            campo de observações correspondente.
+          </p>
+
+          <div className="rounded-lg border border-shell-border p-3">
+            <label className="flex cursor-pointer items-start gap-2 text-sm text-shell-text">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 accent-shell-accent"
+                checked={form.arrombamento_245_2}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    arrombamento_245_2: e.target.checked,
+                    arrombamento_245_2_obs: e.target.checked
+                      ? form.arrombamento_245_2_obs
+                      : "",
+                  })
+                }
+              />
+              <span>
+                Houve necessidade de arrombamento de porta ou entrada forçada
+                em virtude de desobediência do morador
+                <span className="text-shell-muted"> (Art. 245, §2º do CPB)</span>
+              </span>
+            </label>
+            {form.arrombamento_245_2 ? (
+              <textarea
+                className={`${inputClass()} mt-2 min-h-20`}
+                value={form.arrombamento_245_2_obs}
+                onChange={(e) =>
+                  setForm({ ...form, arrombamento_245_2_obs: e.target.value })
+                }
+                placeholder="Descreva como ocorreu o arrombamento / entrada forçada..."
+                required
+              />
+            ) : null}
+          </div>
+
+          <div className="rounded-lg border border-shell-border p-3">
+            <label className="flex cursor-pointer items-start gap-2 text-sm text-shell-text">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 accent-shell-accent"
+                checked={form.forca_coisas_245_3}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    forca_coisas_245_3: e.target.checked,
+                    forca_coisas_245_3_obs: e.target.checked
+                      ? form.forca_coisas_245_3_obs
+                      : "",
+                  })
+                }
+              />
+              <span>
+                Foi necessário o emprego da força contra coisas existentes no
+                interior da casa em virtude de recalcitrância do morador
+                <span className="text-shell-muted"> (Art. 245, §3º do CPB)</span>
+              </span>
+            </label>
+            {form.forca_coisas_245_3 ? (
+              <textarea
+                className={`${inputClass()} mt-2 min-h-20`}
+                value={form.forca_coisas_245_3_obs}
+                onChange={(e) =>
+                  setForm({ ...form, forca_coisas_245_3_obs: e.target.value })
+                }
+                placeholder="Descreva o que foi rompido / forçado e as razões..."
+                required
+              />
+            ) : null}
+          </div>
+
+          <div className="rounded-lg border border-shell-border p-3">
+            <label className="flex cursor-pointer items-start gap-2 text-sm text-shell-text">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 accent-shell-accent"
+                checked={form.morador_ausente_245_4}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setForm({
+                    ...form,
+                    morador_ausente_245_4: checked,
+                    morador_ausente_245_4_obs: checked
+                      ? form.morador_ausente_245_4_obs
+                      : "",
+                  });
+                  if (checked) ensureArrombamentoWitness();
+                }}
+              />
+              <span>
+                O morador estava ausente, sendo necessário o arrombamento de
+                porta e emprego da força contra coisas existentes no interior
+                da casa
+                <span className="text-shell-muted"> (Art. 245, §4º do CPB)</span>
+              </span>
+            </label>
+            {form.morador_ausente_245_4 ? (
+              <>
+                <textarea
+                  className={`${inputClass()} mt-2 min-h-20`}
+                  value={form.morador_ausente_245_4_obs}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      morador_ausente_245_4_obs: e.target.value,
+                    })
+                  }
+                  placeholder="Descreva as circunstâncias (horário, modo de arrombamento, etc.)..."
+                  required
+                />
+                <p className="mt-2 rounded border border-amber-700/50 bg-amber-950/30 p-2 text-xs text-amber-200">
+                  Nesta hipótese é obrigatório qualificar pelo menos uma{" "}
+                  <strong>testemunha vizinha</strong> (com CPF, RG, filiação e
+                  endereço) na seção de testemunhas abaixo.
+                </p>
+              </>
+            ) : null}
+          </div>
+        </div>,
+      )}
+
+      {form.morador_ausente_245_4
+        ? null
+        : section(
+            "Morador presente",
+            <div className="space-y-3">
+              <p className="text-xs text-shell-muted">
+                Quando o morador estava presente na diligência, é obrigatório
+                qualificá-lo (Art. 245, caput e §1º do CPP). Esta seção fica
+                oculta automaticamente quando a hipótese de morador ausente
+                (§4º) é marcada acima.
+              </p>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <label className="text-sm md:col-span-2">
+                  <span className="text-shell-muted">Nome completo</span>
+                  <input
+                    className={`${inputClass()} mt-1`}
+                    value={form.morador_nome}
+                    onChange={(e) =>
+                      setForm({ ...form, morador_nome: e.target.value })
+                    }
+                    required
+                  />
+                </label>
+                <label className="text-sm">
+                  <span className="text-shell-muted">CPF</span>
+                  <input
+                    className={`${inputClass()} mt-1`}
+                    placeholder="000.000.000-00"
+                    value={form.morador_cpf}
+                    onChange={(e) =>
+                      setForm({ ...form, morador_cpf: e.target.value })
+                    }
+                    required
+                  />
+                </label>
+                <label className="text-sm">
+                  <span className="text-shell-muted">RG</span>
+                  <input
+                    className={`${inputClass()} mt-1`}
+                    placeholder="00.000.000-0"
+                    value={form.morador_rg}
+                    onChange={(e) =>
+                      setForm({ ...form, morador_rg: e.target.value })
+                    }
+                    required
+                  />
+                </label>
+                <label className="text-sm md:col-span-2">
+                  <span className="text-shell-muted">
+                    Filiação (pai e/ou mãe)
+                  </span>
+                  <input
+                    className={`${inputClass()} mt-1`}
+                    placeholder="Filho(a) de... e..."
+                    value={form.morador_filiacao}
+                    onChange={(e) =>
+                      setForm({ ...form, morador_filiacao: e.target.value })
+                    }
+                    required
+                  />
+                </label>
+                <label className="text-sm md:col-span-2">
+                  <span className="text-shell-muted">Telefone</span>
+                  <input
+                    className={`${inputClass()} mt-1`}
+                    placeholder="(61) 9 9999-9999"
+                    value={form.morador_telefone}
+                    onChange={(e) =>
+                      setForm({ ...form, morador_telefone: e.target.value })
+                    }
+                    required
+                  />
+                </label>
+              </div>
+            </div>,
+          )}
 
       {section(
         "Materiais apreendidos",
@@ -616,49 +1041,194 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
       )}
 
       {section(
-        "Testemunhas",
-        <div className="space-y-2">
-          <button
-            type="button"
-            className="rounded border border-shell-border px-3 py-1 text-xs text-shell-text"
-            onClick={() =>
-              setForm({
-                ...form,
-                testemunhas: [
-                  ...form.testemunhas,
-                  { nome: "", documento: "", contato: "" },
-                ],
-              })
-            }
-          >
-            Adicionar linha
-          </button>
-          {form.testemunhas.map((item, idx) => (
-            <div key={`tes-${idx}`} className="grid grid-cols-1 gap-2 md:grid-cols-3">
-              <input
-                className={inputClass()}
-                placeholder="Nome"
-                value={item.nome}
-                onChange={(e) => updateTestemunha(idx, { nome: e.target.value })}
-              />
-              <input
-                className={inputClass()}
-                placeholder="Documento"
-                value={item.documento}
-                onChange={(e) =>
-                  updateTestemunha(idx, { documento: e.target.value })
-                }
-              />
-              <input
-                className={inputClass()}
-                placeholder="Contato"
-                value={item.contato}
-                onChange={(e) =>
-                  updateTestemunha(idx, { contato: e.target.value })
-                }
-              />
-            </div>
-          ))}
+        form.morador_ausente_245_4
+          ? "Testemunhas (vizinha qualificada obrigatória — Art. 245, §4º do CPP)"
+          : "Testemunhas",
+        <div className="space-y-3">
+          <p className="text-xs text-shell-muted">
+            Marque cada testemunha como <strong>geral</strong> ou{" "}
+            <strong>testemunha de arrombamento (§4º)</strong>. A testemunha de
+            arrombamento (vizinha) é obrigatória quando o morador estava
+            ausente e dispensa cidade/telefone; em troca permite anotar
+            observações.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded border border-shell-border px-3 py-1 text-xs text-shell-text"
+              onClick={() =>
+                setForm({
+                  ...form,
+                  testemunhas: [...form.testemunhas, emptyTestemunha("geral")],
+                })
+              }
+            >
+              + Testemunha
+            </button>
+            <button
+              type="button"
+              className="rounded border border-shell-accent/50 bg-shell-accentBlue px-3 py-1 text-xs font-semibold text-shell-text hover:bg-[#2a4f86]"
+              onClick={() =>
+                setForm({
+                  ...form,
+                  testemunhas: [
+                    ...form.testemunhas,
+                    emptyTestemunha("arrombamento"),
+                  ],
+                })
+              }
+            >
+              + Testemunha de arrombamento (§4º)
+            </button>
+          </div>
+          {form.morador_ausente_245_4 &&
+          !form.testemunhas.some((t) => t.tipo === "arrombamento") ? (
+            <p className="rounded border border-amber-700/50 bg-amber-950/30 p-2 text-xs text-amber-200">
+              Adicione ao menos uma testemunha de arrombamento (§4º) com
+              qualificação completa.
+            </p>
+          ) : null}
+          {form.testemunhas.map((item, idx) => {
+            const isArr = item.tipo === "arrombamento";
+            return (
+              <div
+                key={`tes-${idx}`}
+                className={`rounded-lg border p-3 ${
+                  isArr
+                    ? "border-shell-accent/50 bg-shell-accentBlue/10"
+                    : "border-shell-border"
+                }`}
+              >
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-xs text-shell-muted">
+                    Tipo da testemunha
+                    <select
+                      className={`${inputClass()} ml-2 inline-block w-auto py-1 text-xs`}
+                      value={item.tipo}
+                      onChange={(e) =>
+                        setTestemunhaTipo(idx, e.target.value as TestemunhaTipo)
+                      }
+                    >
+                      <option value="geral">Geral</option>
+                      <option value="arrombamento">Arrombamento (§4º)</option>
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => removeTestemunha(idx)}
+                    className="rounded border border-red-700/60 bg-red-950/30 px-2 py-1 text-xs text-red-300"
+                    title="Remover testemunha"
+                  >
+                    Remover
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                  <label className="text-xs text-shell-muted md:col-span-2">
+                    Nome completo
+                    <input
+                      className={`${inputClass()} mt-1`}
+                      value={item.nome}
+                      onChange={(e) =>
+                        updateTestemunha(idx, { nome: e.target.value })
+                      }
+                      required
+                    />
+                  </label>
+                  <label className="text-xs text-shell-muted">
+                    CPF
+                    <input
+                      className={`${inputClass()} mt-1`}
+                      placeholder="000.000.000-00"
+                      value={item.cpf}
+                      onChange={(e) =>
+                        updateTestemunha(idx, { cpf: e.target.value })
+                      }
+                      required
+                    />
+                  </label>
+                  <label className="text-xs text-shell-muted">
+                    RG
+                    <input
+                      className={`${inputClass()} mt-1`}
+                      placeholder="00.000.000-0"
+                      value={item.rg}
+                      onChange={(e) =>
+                        updateTestemunha(idx, { rg: e.target.value })
+                      }
+                      required
+                    />
+                  </label>
+                  <label className="text-xs text-shell-muted md:col-span-2">
+                    Filiação (pai e/ou mãe)
+                    <input
+                      className={`${inputClass()} mt-1`}
+                      placeholder="Filho(a) de... e..."
+                      value={item.filiacao}
+                      onChange={(e) =>
+                        updateTestemunha(idx, { filiacao: e.target.value })
+                      }
+                      required
+                    />
+                  </label>
+                  <label className="text-xs text-shell-muted md:col-span-2">
+                    Endereço completo
+                    <input
+                      className={`${inputClass()} mt-1`}
+                      placeholder="Logradouro, nº, complemento, bairro"
+                      value={item.endereco}
+                      onChange={(e) =>
+                        updateTestemunha(idx, { endereco: e.target.value })
+                      }
+                      required
+                    />
+                  </label>
+                  {!isArr ? (
+                    <>
+                      <label className="text-xs text-shell-muted">
+                        Cidade
+                        <input
+                          className={`${inputClass()} mt-1`}
+                          placeholder="Cidade/UF"
+                          value={item.cidade ?? ""}
+                          onChange={(e) =>
+                            updateTestemunha(idx, { cidade: e.target.value })
+                          }
+                          required
+                        />
+                      </label>
+                      <label className="text-xs text-shell-muted">
+                        Telefone
+                        <input
+                          className={`${inputClass()} mt-1`}
+                          placeholder="(61) 9 9999-9999"
+                          value={item.telefone ?? ""}
+                          onChange={(e) =>
+                            updateTestemunha(idx, {
+                              telefone: e.target.value,
+                            })
+                          }
+                          required
+                        />
+                      </label>
+                    </>
+                  ) : (
+                    <label className="text-xs text-shell-muted md:col-span-2">
+                      Observações da testemunha de arrombamento
+                      <textarea
+                        className={`${inputClass()} mt-1 min-h-16`}
+                        value={item.arrombamento?.observacoes ?? ""}
+                        onChange={(e) =>
+                          updateArrombamentoObs(idx, e.target.value)
+                        }
+                        placeholder="Relato livre da testemunha vizinha (opcional)"
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>,
       )}
 

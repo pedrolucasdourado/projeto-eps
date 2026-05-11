@@ -53,7 +53,7 @@ As entidades de apoio ao ACBA ficam em `/api/cadastros/*` (UFs, cidades, unidade
 
 ## Módulo ACBA
 
-O módulo **Auto Circunstanciado de Busca e Arrecadação (ACBA)** inclui:
+O módulo **AUTO CIRCUNSTANCIADO DE BUSCA E APREENSÃO(ACBA)** inclui:
 
 - CRUD (`/api/acba`): criar, listar, detalhar, editar e excluir, com vínculos aos cadastros auxiliares (evita texto livre onde há catálogo).
 - Histórico de schema: `V2__create_acba_records.sql` (versão inicial da tabela); **estrutura atual** consolidada em `V4` após cadastros em `V3`.

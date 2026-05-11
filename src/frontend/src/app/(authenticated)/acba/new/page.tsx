@@ -27,7 +27,7 @@ export default function AcbaNewPage() {
   return (
     <div className="space-y-5">
       <h2 className="text-xl font-semibold text-shell-text">
-        Novo auto circunstanciado de busca e arrecadação
+        Novo AUTO CIRCUNSTANCIADO DE BUSCA E APREENSÃO
       </h2>
       <AcbaForm submitting={submitting} onSubmit={handleSubmit} />
     </div>

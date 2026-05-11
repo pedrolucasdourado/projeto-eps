@@ -87,6 +87,8 @@ class DescribeResponse(BaseModel):
     cache_hit: bool
     modelo: str
     prompt_versao: str
+    tipo_id_sugerido: int | None = None
+    tipo_nome_sugerido: str | None = None
 
 
 class IaRunRead(BaseModel):

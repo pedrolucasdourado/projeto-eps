@@ -41,7 +41,7 @@ export default function AcbaListPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-semibold text-shell-text">
-          Autos Circunstanciados de Busca e Arrecadação
+          AUTO CIRCUNSTANCIADO DE BUSCA E APREENSÃO
         </h2>
         <Link
           href="/acba/new"
