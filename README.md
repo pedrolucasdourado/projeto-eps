@@ -57,7 +57,7 @@ O módulo **AUTO CIRCUNSTANCIADO DE BUSCA E APREENSÃO(ACBA)** inclui:
 
 - CRUD (`/api/acba`): criar, listar, detalhar, editar e excluir, com vínculos aos cadastros auxiliares (evita texto livre onde há catálogo).
 - Histórico de schema: `V2__create_acba_records.sql` (versão inicial da tabela); **estrutura atual** consolidada em `V4` após cadastros em `V3`.
-- **PDF** (`GET /api/acba/{id}/pdf`): preenchimento de um **template DOCX** (`python-docx`) com placeholders `{{...}}` e conversão para PDF via **LibreOffice** no container do backend. Substitua o arquivo em `src/backend/templates/` pelo documento oficial da instituição mantendo os mesmos placeholders (veja `src/backend/templates/README.md`).
+- **PDF** (`GET /api/acba/{id}/pdf`): preenchimento do **template HTML** `src/backend/templates/acba_template.html` (Jinja2, espelhando o modelo oficial) e conversão para PDF com **WeasyPrint** no backend. Alternativa legada: `ACBA_PDF_RENDERER=docx` usa docxtpl + LibreOffice (veja `src/backend/templates/README.md`).
 - Telas: `/acba`, `/acba/new`, `/acba/{id}`, `/acba/{id}/edit`; no detalhe, **Gerar PDF** faz o download do arquivo gerado.
 
 ## O que sobe no Compose

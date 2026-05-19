@@ -15,6 +15,10 @@ class Settings(BaseSettings):
         "http://[::1]:3000"
     )
 
+    # Renderizador de PDF: "html" (WeasyPrint + template HTML) ou "docx" (docxtpl + LibreOffice)
+    acba_pdf_renderer: str = "html"
+    # Template HTML do ACBA (Jinja2) — espelha o modelo oficial em acba_template.html
+    acba_html_template_path: str = "/app/templates/acba_template.html"
     # Template DOCX do ACBA (substitua pelo modelo oficial com os mesmos placeholders)
     acba_docx_template_path: str = "/app/templates/acba_template.docx"
     # Comando LibreOffice para conversão DOCX→PDF (vazio = auto: soffice/libreoffice no PATH)

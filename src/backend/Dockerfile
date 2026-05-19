@@ -9,6 +9,10 @@ RUN apt-get update \
     libpq5 \
     libreoffice-writer \
     fonts-dejavu-core \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf-2.0-0 \
+    shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

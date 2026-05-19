@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>ACBA — {{ protocolo_numero }}</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 1.6cm 1.8cm;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 11pt;
+      line-height: 1.35;
+      color: #000;
+      margin: 0;
+    }
+    .doc-header {
+      text-align: center;
+      margin-bottom: 0.6em;
+    }
+    .logo-pcdf {
+      display: block;
+      height: 92px;
+      width: auto;
+      margin: 0 auto 0.45em;
+    }
+    h1 {
+      text-align: center;
+      font-size: 13pt;
+      font-weight: bold;
+      margin: 0.35em 0 0.75em;
+      letter-spacing: 0.02em;
+    }
+    .header-meta {
+      text-align: center;
+      font-size: 10pt;
+      margin: 0 0 0.35em;
+    }
+    .field-row {
+      margin: 0.35em 0;
+    }
+    .rotulo { font-weight: bold; }
+    p { margin: 0.45em 0; text-align: justify; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.6em 0;
+      font-size: 10pt;
+    }
+    th, td {
+      border: 1px solid #000;
+      padding: 4px 6px;
+      vertical-align: top;
+    }
+    th {
+      background: #f0f0f0;
+      font-weight: bold;
+      text-align: center;
+    }
+    .section-title {
+      font-weight: bold;
+      text-align: center;
+      margin: 0.8em 0 0.3em;
+      font-size: 10.5pt;
+    }
+    .sim-nao { white-space: nowrap; }
+    .sim-nao span { margin-right: 1.2em; }
+    .assinaturas {
+      margin-top: 1.2em;
+      page-break-inside: avoid;
+    }
+    .assinaturas .linha {
+      border-bottom: 1px solid #000;
+      min-height: 1.4em;
+      margin: 0.25em 0 0.5em;
+    }
+    .assinaturas .rotulo {
+      font-size: 9.5pt;
+      font-weight: bold;
+      margin-top: 0.8em;
+    }
+    .obs-block {
+      border: 1px solid #000;
+      min-height: 2.5em;
+      padding: 4px 6px;
+      margin: 0.3em 0 0.6em;
+      white-space: pre-wrap;
+    }
+    .senha-padrao {
+      max-width: 72px;
+      height: auto;
+      display: block;
+    }
+    .testemunha-card {
+      border: 1px solid #ccc;
+      padding: 6px 8px;
+      margin: 0.4em 0;
+    }
+    .page-break { page-break-before: always; }
+  </style>
+</head>
+<body>
+
+  <header class="doc-header">
+    <img
+      src="pcdf-logo.png"
+      alt="Polícia Civil do Distrito Federal"
+      class="logo-pcdf"
+    />
+    <p class="header-meta">
+      AAA Nº ____________/2025 – CORF &nbsp;&nbsp;&nbsp; AAA Nº ____________/2025 – CORF
+    </p>
+    <h1>AUTO CIRCUNSTANCIADO DE BUSCA E APREENSÃO</h1>
+  </header>
+
+  <p class="field-row">
+    <span class="rotulo">Processo n.º</span> {{ processo_numero }}
+    (<span class="rotulo">Prot.:</span> {{ protocolo_numero }})
+  </p>
+
+  <p class="field-row">
+    <span class="rotulo">EQUIPE:</span> {{ equipe_numero }}
+    {% if equipe_nome and equipe_nome != "—" %} — {{ equipe_nome }}{% endif %}
+    &nbsp;&nbsp;&nbsp;&nbsp;
+    <span class="rotulo">ALVO:</span> {{ alvo_busca }}
+  </p>
+
+  <p class="field-row">
+    <span class="rotulo">Endereço:</span> {{ endereco_busca }}
+  </p>
+
+  <p>
+    No dia <strong>{{ data_dia }}</strong> do mês de <strong>{{ data_mes_nome }}</strong>
+    do ano de <strong>{{ data_ano }}</strong>, na cidade de <strong>{{ cidade }}</strong>,
+    a equipe de Policiais Civis coordenados pelo Delegado de Polícia
+    <strong>{{ delegado }}</strong>, matrícula <strong>{{ delegado_matricula }}</strong>,
+    e composta pelos Policiais Civis <strong>{{ agentes_narrativa }}</strong>,
+    em cumprimento ao Mandado de Busca e Apreensão exarado
+    {% if nome_vara_criminal and nome_vara_criminal != '—' %}
+    pelo(a) MM. Juiz(a) de Direito da <strong>{{ nome_vara_criminal }}</strong>{% if nome_juiz and nome_juiz != '—' %}, <strong>{{ nome_juiz }}</strong>{% endif %},
+    {% elif nome_juiz and nome_juiz != '—' %}
+    por <strong>{{ nome_juiz }}</strong>,
+    {% else %}
+    (vara criminal e juiz não informados),
+    {% endif %}
+    na presença das testemunhas ao final qualificadas, após a exibição e leitura do
+    Mandado e observadas as formalidades legais, foi determinada pela Autoridade Policial
+    a apreensão do(s) documento(s) e/ou objeto(s) abaixo descritos:
+  </p>
+
+  <p class="section-title">
+    DESCRIÇÃO DO MATERIAL DE INFORMÁTICA APREENDIDO E A EXATA POSIÇÃO EM QUE SE DEU A LOCALIZAÇÃO
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:8%">ITEM</th>
+        <th>DESCRIÇÃO + LOCALIZAÇÃO</th>
+        <th style="width:18%">SENHA</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in materiais_informatica %}
+      <tr>
+        <td style="text-align:center">{{ m.item_num }}</td>
+        <td>{{ m.descricao_completa }}</td>
+        <td>{{ m.senha_render }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="3" style="text-align:center">— Nenhum material de informática —</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p class="section-title">
+    DESCRIÇÃO DO MATERIAL APREENDIDO E A EXATA POSIÇÃO EM QUE SE DEU A LOCALIZAÇÃO
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:8%">ITEM</th>
+        <th>DESCRIÇÃO + LOCALIZAÇÃO</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in materiais_geral %}
+      <tr>
+        <td style="text-align:center">{{ m.item_num }}</td>
+        <td>{{ m.descricao_completa }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="2" style="text-align:center">— Nenhum material geral —</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p>
+    Os referidos documentos e/ou objetos foram apreendidos nesta data, em cumprimento ao
+    Mandado de Busca e Apreensão expedido no interesse do
+    <strong>{{ tipo_procedimento }} nº {{ procedimento_numero }}</strong>,
+    realizado no imóvel situado na:
+  </p>
+  <p><strong>{{ endereco_busca }}</strong></p>
+  <p>
+    Vinculado à pessoa e/ou empresa <strong>{{ alvo_busca }}</strong>.
+  </p>
+  <p>
+    <span class="rotulo">Fundamento legal:</span> {{ fundamento_legal }}
+  </p>
+  <p>
+    <span class="rotulo">Unidade / Delegacia:</span> {{ unidade }} — {{ delegacia }}
+    ({{ cidade }} — {{ uf_sigla }}/{{ uf_nome }})
+  </p>
+
+  <p>
+    Finda a diligência, e em cumprimento ao artigo 245, do Código de Processo Penal, a
+    Autoridade Policial determinou que fossem circunstanciados os seguintes fatos:
+  </p>
+
+  <p>
+    <strong>Houve necessidade de arrombamento de porta ou entrada forçada</strong> em virtude
+    de desobediência do morador (Artigo 245, §2º do CPP)
+    <span class="sim-nao">
+      <span>{% if arrombamento_245_2 %}☑{% else %}☐{% endif %} Sim</span>
+      <span>{% if not arrombamento_245_2 %}☑{% else %}☐{% endif %} Não</span>
+    </span>
+  </p>
+  <p class="rotulo">Observações (§2º):</p>
+  <div class="obs-block">{{ arrombamento_245_2_obs }}</div>
+
+  <p>
+    <strong>Foi necessário o emprego da força contra coisas</strong> existentes no interior
+    da casa em virtude de recalcitrância do morador (Artigo 245, §3º do CPP)
+    <span class="sim-nao">
+      <span>{% if forca_coisas_245_3 %}☑{% else %}☐{% endif %} Sim</span>
+      <span>{% if not forca_coisas_245_3 %}☑{% else %}☐{% endif %} Não</span>
+    </span>
+  </p>
+  <p class="rotulo">Observações (§3º):</p>
+  <div class="obs-block">{{ forca_coisas_245_3_obs }}</div>
+
+  <p>
+    <strong>O morador estava ausente</strong>, sendo necessário o arrombamento de porta e
+    emprego da força contra coisas existentes no interior da casa (Artigo 245, §4º do CPP)
+    <span class="sim-nao">
+      <span>{% if morador_ausente_245_4 %}☑{% else %}☐{% endif %} Sim</span>
+      <span>{% if not morador_ausente_245_4 %}☑{% else %}☐{% endif %} Não</span>
+    </span>
+  </p>
+  <p class="rotulo">Observações (§4º):</p>
+  <div class="obs-block">{{ morador_ausente_245_4_obs }}</div>
+
+  {% if testemunhas_arrombamento %}
+  {% for t in testemunhas_arrombamento %}
+  <div class="testemunha-card">
+    <p><strong>Testemunha de arrombamento (preferencialmente vizinho) — Art. 245 §4º</strong></p>
+    <p><span class="rotulo">Nome:</span> {{ t.nome }}</p>
+    <p><span class="rotulo">CPF:</span> {{ t.cpf }} &nbsp; <span class="rotulo">RG:</span> {{ t.rg }}</p>
+    <p><span class="rotulo">Filiação:</span> {{ t.filiacao }}</p>
+    <p><span class="rotulo">Endereço:</span> {{ t.endereco }}</p>
+    <p><span class="rotulo">Observações:</span> {{ t.observacoes }}</p>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <p class="rotulo">Observações complementares a critério da equipe policial:</p>
+  <div class="obs-block">{{ observacoes }}</div>
+
+  <p>
+    Nada mais havendo a ser consignado, é encerrado o presente que, depois de lido e achado
+    conforme, vai devidamente assinado pela equipe de Policiais responsável pela Busca,
+    pelo detentor e pelas testemunhas abaixo qualificadas.
+  </p>
+
+  <div class="assinaturas">
+    <p class="rotulo">AUTORIDADE POLICIAL:</p>
+    <div class="linha">{{ delegado }} — Mat. {{ delegado_matricula }}</div>
+
+    {% if agente_1 %}
+    <p class="rotulo">AGENTE DE POLÍCIA:</p>
+    <div class="linha">{{ agente_1.nome }} — Mat. {{ agente_1.matricula }}</div>
+    {% endif %}
+    {% if agente_2 %}
+    <p class="rotulo">AGENTE DE POLÍCIA:</p>
+    <div class="linha">{{ agente_2.nome }} — Mat. {{ agente_2.matricula }}</div>
+    {% endif %}
+    {% for ag in agentes_equipe[2:] %}
+    <p class="rotulo">AGENTE DE POLÍCIA:</p>
+    <div class="linha">{{ ag.nome }} — Mat. {{ ag.matricula }}</div>
+    {% endfor %}
+
+    {% if morador_presente %}
+    <p class="rotulo">MORADOR (PRESENTE):</p>
+    <div class="linha">
+      {{ morador_nome }} — CPF: {{ morador_cpf }} — RG: {{ morador_rg }}
+    </div>
+    <p>Filiação: {{ morador_filiacao }} — Telefone: {{ morador_telefone }}</p>
+    {% endif %}
+
+    {% if testemunhas_gerais %}
+    <p class="rotulo">TESTEMUNHAS:</p>
+    {% for t in testemunhas_gerais %}
+    <div class="testemunha-card">
+      <p><strong>{{ loop.index }}) {{ t.nome }}</strong></p>
+      <p>CPF: {{ t.cpf }} &nbsp; RG: {{ t.rg }}</p>
+      <p>Filiação: {{ t.filiacao }}</p>
+      <p>Endereço: {{ t.endereco }}</p>
+      <p>Cidade: {{ t.cidade }} — Telefone: {{ t.telefone }}</p>
+      <div class="linha"></div>
+      <p style="font-size:9pt">Assinatura</p>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <p class="rotulo">Responsável pela lavratura / assinatura no sistema:</p>
+    <div class="linha">{{ assinatura_responsavel }}</div>
+    <p style="font-size:9pt">Escrivão: {{ escrivao }} — Data/hora: {{ data_lavratura }} {{ hora_lavratura }}</p>
+  </div>
+
+</body>
+</html>

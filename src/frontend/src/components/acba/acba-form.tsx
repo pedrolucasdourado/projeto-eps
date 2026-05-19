@@ -796,9 +796,12 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
             />
           </label>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <label className="text-sm block">
+            <label className="text-sm block" htmlFor="acba-nome-vara-criminal">
               <span className="text-shell-muted">Vara criminal</span>
               <input
+                id="acba-nome-vara-criminal"
+                name="nome_vara_criminal"
+                autoComplete="off"
                 className={`${inputClass()} mt-1`}
                 value={form.nome_vara_criminal}
                 onChange={(e) =>
@@ -807,9 +810,12 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
                 placeholder="Ex.: 2ª Vara Criminal de Brasília/DF"
               />
             </label>
-            <label className="text-sm block">
+            <label className="text-sm block" htmlFor="acba-nome-juiz">
               <span className="text-shell-muted">Juiz(a) que expediu o mandado</span>
               <input
+                id="acba-nome-juiz"
+                name="nome_juiz"
+                autoComplete="off"
                 className={`${inputClass()} mt-1`}
                 value={form.nome_juiz}
                 onChange={(e) => setForm({ ...form, nome_juiz: e.target.value })}

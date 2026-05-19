@@ -1,8 +1,16 @@
-# Template DOCX do ACBA
+# Templates do ACBA (PDF)
 
-A partir da V8 (materiais com especialização de informática), o serviço de geração de PDF
-usa **docxtpl** — sintaxe Jinja dentro do `.docx` — para popular as duas tabelas de
-material apreendido com loop, em vez do `python-docx` puro.
+Por padrão (`ACBA_PDF_RENDERER=html`), o PDF é gerado a partir de **`acba_template.html`**
+(Jinja2 + WeasyPrint). O layout espelha o modelo oficial
+*“A C B A - Auto Circunstanciado de Busca e Arrecadação.docx”* na raiz do repositório.
+
+Edite `acba_template.html` para ajustar tipografia, margens ou seções. As variáveis
+Jinja são montadas em `app/services/acba_pdf_context.py` (compartilhadas com o modo DOCX).
+
+## Modo legado: template DOCX
+
+Com `ACBA_PDF_RENDERER=docx`, o serviço usa **docxtpl** — sintaxe Jinja dentro do `.docx` —
+para popular as duas tabelas de material apreendido com loop.
 
 ## 1. Coloque o `.docx` oficial em `acba_template.docx`
 
@@ -143,4 +151,5 @@ A célula `senha_render` recebe automaticamente:
 cd src/backend && pip install -r requirements.txt && python scripts/generate_acba_template_docx.py
 ```
 
-O backend preenche o template e converte para PDF com **LibreOffice** no container.
+No modo **html**, o backend renderiza o template e converte com **WeasyPrint**.
+No modo **docx**, a conversão usa **LibreOffice** no container.

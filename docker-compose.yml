@@ -43,6 +43,8 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-aai}:${POSTGRES_PASSWORD:-aai_secret_change_me}@postgres:5432/${POSTGRES_DB:-aai_db}
       JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
       CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://[::1]:3000}"
+      ACBA_PDF_RENDERER: ${ACBA_PDF_RENDERER:-html}
+      ACBA_HTML_TEMPLATE_PATH: ${ACBA_HTML_TEMPLATE_PATH:-/app/templates/acba_template.html}
       ACBA_DOCX_TEMPLATE_PATH: ${ACBA_DOCX_TEMPLATE_PATH:-/app/templates/acba_template.docx}
       LIBREOFFICE_CMD: ${LIBREOFFICE_CMD:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY}

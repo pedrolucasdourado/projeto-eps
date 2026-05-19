@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from app.acba_schemas import AcbaCreate, AcbaDetail, AcbaListItem, AcbaUpdate
 from app.routers.auth import get_authenticated_user
 from app.schemas import UserPublic
-from app.services.acba_docx_pdf_service import render_acba_pdf_bytes
+from app.config import settings
+from app.services import acba_docx_pdf_service, acba_html_pdf_service
 from app.services.acba_service import AcbaService
 
 router = APIRouter()
@@ -33,8 +34,13 @@ def generate_pdf(
 ) -> Response:
     record = service.get_by_id(record_id)
     service.assert_pdf_pronto(record)
+    render_pdf = (
+        acba_html_pdf_service.render_acba_pdf_bytes
+        if settings.acba_pdf_renderer.strip().lower() == "html"
+        else acba_docx_pdf_service.render_acba_pdf_bytes
+    )
     try:
-        content = render_acba_pdf_bytes(record)
+        content = render_pdf(record)
     except FileNotFoundError as exc:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
