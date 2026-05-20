@@ -135,6 +135,8 @@ export type AcbaListItem = {
   equipe_nome?: string | null;
   created_at: string;
   materiais_pendentes_revisao: number;
+  /** ISO timestamp (UTC) da última geração do PDF; null quando nunca gerado. */
+  pdf_gerado_at?: string | null;
 };
 
 export type AcbaDetail = Omit<AcbaFormPayload, "materiais"> & {
@@ -159,6 +161,26 @@ export type AcbaDetail = Omit<AcbaFormPayload, "materiais"> & {
   agentes_equipe: AgenteBrief[];
   materiais: MaterialItem[];
   materiais_pendentes_revisao: number;
+  /** Timestamp ISO da última geração do PDF (null = nunca gerado). */
+  pdf_gerado_at?: string | null;
+  pdf_gerado_por_user_id?: number | null;
+};
+
+/** Auditoria do ACBA — uma entrada por alteração. */
+export type AcbaAuditEntry = {
+  id: number;
+  acba_id: number;
+  user_id: number | null;
+  user_email: string;
+  user_full_name: string | null;
+  user_role: "administrador" | "delegado" | "escrivao" | "agente";
+  acao: "criado" | "editado" | "excluido" | "pdf_gerado";
+  changed_at: string;
+  ip: string | null;
+  user_agent: string | null;
+  changes: Record<string, { de: unknown; para: unknown }> | null;
+  snapshot_before?: Record<string, unknown> | null;
+  snapshot_after?: Record<string, unknown> | null;
 };
 
 export type Processo = {

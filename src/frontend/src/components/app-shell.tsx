@@ -5,12 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { CADASTROS } from "@/config/cadastro-registry";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth, type UserRole } from "@/contexts/auth-context";
 
-const navPrimary = [
-  { href: "/dashboard", label: "Início" },
-  { href: "/acba", label: "ACBA" },
-];
+type NavItem = { href: string; label: string };
 
 const cadastroSlugOrder = [
   "unidades",
@@ -34,9 +31,57 @@ const cadastroLinks = [
   { slug: "equipes", href: "/cadastros/equipes", label: "Equipes operacionais" },
 ];
 
+/**
+ * Itens da navegação principal por papel. ACBA fica disponível para todo
+ * usuário operacional; administrador só vê "Usuários" e "Cadastros" — sem
+ * acesso ao módulo ACBA, como definido na regra de negócio.
+ */
+function navItemsForRole(role: UserRole): NavItem[] {
+  if (role === "administrador") {
+    return [
+      { href: "/dashboard", label: "Início" },
+      { href: "/usuarios", label: "Usuários" },
+    ];
+  }
+  return [
+    { href: "/dashboard", label: "Início" },
+    { href: "/acba", label: "ACBA" },
+  ];
+}
+
+/** Quais cadastros aparecem para cada papel. Administrador vê todos. */
+function visibleCadastros(role: UserRole) {
+  if (role === "administrador") return cadastroLinks;
+  // Demais papéis enxergam cadastros auxiliares só em modo leitura (o
+  // backend não restringe leitura, então mantemos os links de consulta);
+  // exclusões/edições retornam 400/403 quando dependem de admin.
+  return cadastroLinks.filter(
+    (l) =>
+      ![
+        // Esconde a gestão de pessoas — só o admin gerencia esses cadastros.
+        "delegados",
+        "escrivaos",
+        "agentes",
+      ].includes(l.slug as string),
+  );
+}
+
+function roleLabel(role: UserRole): string {
+  return {
+    administrador: "Administrador",
+    delegado: "Delegado",
+    escrivao: "Escrivão",
+    agente: "Agente",
+  }[role];
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const role: UserRole = user?.role ?? "administrador";
+  const navPrimary = navItemsForRole(role);
+  const showCadastros = role === "administrador" || role === "delegado";
+  const cadastrosVisiveis = visibleCadastros(role);
 
   return (
     <div className="flex min-h-screen bg-shell-bg">
@@ -79,30 +124,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               );
             })}
           </div>
-          <div>
-            <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-shell-muted">
-              Cadastros auxiliares
-            </p>
-            <div className="flex flex-col gap-1">
-              {cadastroLinks.map(({ href, label }) => {
-                const active =
-                  pathname === href || pathname.startsWith(`${href}/`);
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-                      active
-                        ? "border-shell-accent/40 bg-shell-accent/15 text-shell-accent"
-                        : "border-transparent text-shell-muted hover:border-shell-border hover:bg-shell-sidebarHover hover:text-shell-text"
-                    }`}
-                  >
-                    {label}
-                  </Link>
-                );
-              })}
+          {showCadastros ? (
+            <div>
+              <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-shell-muted">
+                Cadastros auxiliares
+              </p>
+              <div className="flex flex-col gap-1">
+                {cadastrosVisiveis.map(({ href, label }) => {
+                  const active =
+                    pathname === href || pathname.startsWith(`${href}/`);
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                        active
+                          ? "border-shell-accent/40 bg-shell-accent/15 text-shell-accent"
+                          : "border-transparent text-shell-muted hover:border-shell-border hover:bg-shell-sidebarHover hover:text-shell-text"
+                      }`}
+                    >
+                      {label}
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          ) : null}
         </nav>
         <div className="border-t border-shell-border p-4 text-xs text-shell-muted">
           Sistema Operacional PCDF
@@ -115,9 +162,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             Ambiente de Operações
           </h1>
           <div className="flex items-center gap-4">
-            <span className="hidden text-sm text-shell-text sm:inline">
-              {user?.full_name ?? user?.email}
-            </span>
+            <div className="hidden text-right sm:block">
+              <p className="text-sm text-shell-text">
+                {user?.full_name ?? user?.email}
+              </p>
+              <p className="text-[10px] uppercase tracking-[0.14em] text-shell-muted">
+                {roleLabel(role)}
+              </p>
+            </div>
             <button
               type="button"
               onClick={() => logout()}

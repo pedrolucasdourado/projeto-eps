@@ -111,9 +111,14 @@ async def descrever_anonimo(
     }
 
 
-def _ensure_acba(acba_id: int) -> None:
-    """404 se o ACBA não existir (delega ao service)."""
-    acba_service.get_by_id(acba_id)
+def _ensure_acba_read(acba_id: int, user: UserPublic) -> None:
+    """404/403 conforme RBAC e escopo de equipe; equivale a leitura do ACBA."""
+    acba_service.get_by_id(acba_id, user=user)
+
+
+def _ensure_acba_write(acba_id: int, user: UserPublic) -> None:
+    """Mesma regra que a edição do auto principal (PDF, escopo, papel)."""
+    acba_service.assert_can_write_materiais(acba_id, user=user)
 
 
 @router.get("/{acba_id}/materiais", response_model=list[MaterialRead])
@@ -121,9 +126,9 @@ def list_materiais(
     acba_id: int,
     tipo_id: int | None = Query(default=None, ge=1),
     categoria_docx: str | None = Query(default=None, pattern="^(informatica|geral)$"),
-    _user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(get_authenticated_user),
 ) -> list[dict[str, Any]]:
-    _ensure_acba(acba_id)
+    _ensure_acba_read(acba_id, user)
     return material_service.list_by_acba(
         acba_id, tipo_id=tipo_id, categoria_docx=categoria_docx
     )
@@ -137,9 +142,9 @@ def list_materiais(
 def create_material(
     acba_id: int,
     payload: MaterialCreate,
-    _user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(get_authenticated_user),
 ) -> dict[str, Any]:
-    _ensure_acba(acba_id)
+    _ensure_acba_write(acba_id, user)
     return material_service.create(acba_id, payload)
 
 
@@ -147,9 +152,9 @@ def create_material(
 def get_material(
     acba_id: int,
     material_id: int,
-    _user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(get_authenticated_user),
 ) -> dict[str, Any]:
-    _ensure_acba(acba_id)
+    _ensure_acba_read(acba_id, user)
     mat = material_service.get(material_id)
     if mat["acba_id"] != acba_id:
         raise HTTPException(
@@ -164,9 +169,9 @@ def update_material(
     acba_id: int,
     material_id: int,
     payload: MaterialUpdate,
-    _user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(get_authenticated_user),
 ) -> dict[str, Any]:
-    _ensure_acba(acba_id)
+    _ensure_acba_write(acba_id, user)
     mat = material_service.get(material_id)
     if mat["acba_id"] != acba_id:
         raise HTTPException(
@@ -182,9 +187,9 @@ def update_material(
 def delete_material(
     acba_id: int,
     material_id: int,
-    _user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(get_authenticated_user),
 ) -> Response:
-    _ensure_acba(acba_id)
+    _ensure_acba_write(acba_id, user)
     mat = material_service.get(material_id)
     if mat["acba_id"] != acba_id:
         raise HTTPException(
@@ -205,7 +210,7 @@ async def descrever(
     imagens: list[UploadFile] = File(default=[]),
     instrucoes_extra: str | None = Form(default=None),
     forcar: bool = Form(default=False),
-    _user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(get_authenticated_user),
 ) -> dict[str, Any]:
     """Recebe 1+ imagens em multipart, manda ao Gemini Vision e devolve a descrição.
 
@@ -213,7 +218,7 @@ async def descrever(
     da IA é salvo em `descricao_ia_raw` e a `descricao` do material é
     sobrescrita se ainda não tiver sido revisada por um humano.
     """
-    _ensure_acba(acba_id)
+    _ensure_acba_write(acba_id, user)
     mat = material_service.get(material_id)
     if mat["acba_id"] != acba_id:
         raise HTTPException(
@@ -299,10 +304,10 @@ def revisar(
     acba_id: int,
     material_id: int,
     payload: RevisarBody,
-    _user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(get_authenticated_user),
 ) -> dict[str, Any]:
     """Marca a descrição como revisada pelo operador (`revisado=TRUE`)."""
-    _ensure_acba(acba_id)
+    _ensure_acba_write(acba_id, user)
     mat = material_service.get(material_id)
     if mat["acba_id"] != acba_id:
         raise HTTPException(
@@ -319,9 +324,9 @@ def revisar(
 def ia_runs(
     acba_id: int,
     material_id: int,
-    _user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(get_authenticated_user),
 ) -> list[dict[str, Any]]:
-    _ensure_acba(acba_id)
+    _ensure_acba_read(acba_id, user)
     mat = material_service.get(material_id)
     if mat["acba_id"] != acba_id:
         raise HTTPException(

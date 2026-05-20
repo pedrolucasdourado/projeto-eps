@@ -45,17 +45,29 @@ def decode_token(token: str) -> dict | None:
         return None
 
 
+def _row_to_user_public(row: dict) -> UserPublic:
+    return UserPublic(
+        id=row["id"],
+        email=row["email"],
+        full_name=row.get("full_name"),
+        role=row.get("role") or "administrador",
+        ativo=bool(row.get("ativo", True)),
+        delegado_id=row.get("delegado_id"),
+        escrivao_id=row.get("escrivao_id"),
+        agente_id=row.get("agente_id"),
+    )
+
+
 def login(body: LoginRequest) -> LoginResponse | None:
     row = fetch_user_by_email(body.email)
     if not row or not verify_password(body.password, row["password_hash"]):
         return None
+    # Usuário desativado: comportamento idêntico a credenciais inválidas para
+    # não revelar a existência do e-mail.
+    if not row.get("ativo", True):
+        return None
     token = create_access_token(row["id"], row["email"])
-    user = UserPublic(
-        id=row["id"],
-        email=row["email"],
-        full_name=row.get("full_name"),
-    )
-    return LoginResponse(access_token=token, user=user)
+    return LoginResponse(access_token=token, user=_row_to_user_public(row))
 
 
 def get_current_user_from_token(token: str) -> UserPublic | None:
@@ -66,8 +78,8 @@ def get_current_user_from_token(token: str) -> UserPublic | None:
     row = fetch_user_by_id(user_id)
     if not row:
         return None
-    return UserPublic(
-        id=row["id"],
-        email=row["email"],
-        full_name=row.get("full_name"),
-    )
+    # Tokens emitidos antes de uma desativação param de funcionar
+    # imediatamente — preferimos isso a exigir lista de revogação.
+    if not row.get("ativo", True):
+        return None
+    return _row_to_user_public(row)

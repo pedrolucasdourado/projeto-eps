@@ -182,17 +182,33 @@ class AcbaRepository:
         assert detail is not None
         return detail
 
-    def list_all(self, tipo_material_id: int | None = None) -> list[dict]:
+    def list_all(
+        self,
+        tipo_material_id: int | None = None,
+        equipe_ids: list[int] | None = None,
+    ) -> list[dict]:
+        """Lista ACBAs com filtros opcionais.
+
+        ``equipe_ids`` é o escopo do usuário:
+          * ``None`` — sem restrição (delegado);
+          * lista vazia — sem acesso a nenhuma equipe (retorna vazio rapidamente);
+          * lista com IDs — restringe pelos IDs informados (escrivão/agente).
+        """
+        if equipe_ids is not None and len(equipe_ids) == 0:
+            return []
         params: dict[str, Any] = {}
         extra_where = ""
         if tipo_material_id is not None:
-            extra_where = """
+            extra_where += """
                 AND EXISTS (
                     SELECT 1 FROM acba_materiais m
                     WHERE m.acba_id = a.id AND m.tipo_id = %(tipo_material_id)s
                 )
             """
             params["tipo_material_id"] = tipo_material_id
+        if equipe_ids is not None:
+            extra_where += " AND a.equipe_id = ANY(%(equipe_ids)s)"
+            params["equipe_ids"] = list(equipe_ids)
         return fetch_all(
             f"""
             SELECT
@@ -202,6 +218,7 @@ class AcbaRepository:
                 a.data_lavratura,
                 a.alvo_busca,
                 a.created_at,
+                a.pdf_gerado_at,
                 d.nome AS delegacia_nome,
                 dl.nome AS delegado_nome,
                 eq.numero AS equipe_numero,
@@ -316,3 +333,15 @@ class AcbaRepository:
 
     def delete(self, record_id: int) -> None:
         execute_query("DELETE FROM acba_records WHERE id = %s", (record_id,))
+
+    def mark_pdf_gerado(self, record_id: int, user_id: int) -> None:
+        """Marca o ACBA como tendo PDF gerado (ou atualiza a marcação)."""
+        execute_query(
+            """
+            UPDATE acba_records
+            SET pdf_gerado_at = CURRENT_TIMESTAMP,
+                pdf_gerado_por_user_id = %s
+            WHERE id = %s
+            """,
+            (user_id, record_id),
+        )

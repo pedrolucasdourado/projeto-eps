@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { useAuth } from "@/contexts/auth-context";
 import { apiRequest, getApiBaseUrl } from "@/lib/api";
 import type { AcbaDetail } from "@/types/acba";
 
 export default function AcbaDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuth();
   const [record, setRecord] = useState<AcbaDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -88,6 +90,20 @@ export default function AcbaDetailPage() {
     );
   }
 
+  const role = user?.role ?? "agente";
+  // Delegado edita sempre; escrivão só enquanto o PDF não foi gerado;
+  // agente nunca edita. Espelha a regra do backend (authz.assert_can_update_acba).
+  const podeEditar =
+    role === "delegado" ||
+    (role === "escrivao" && !record.pdf_gerado_at);
+  const podeExcluir = role === "delegado";
+  const motivoBloqueioEdicao =
+    role === "escrivao" && record.pdf_gerado_at
+      ? "Este ACBA já teve o PDF gerado e está bloqueado para o escrivão. Acione o delegado responsável para qualquer ajuste posterior."
+      : role === "agente"
+        ? "Agentes têm acesso somente para consulta deste ACBA."
+        : null;
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -107,8 +123,14 @@ export default function AcbaDetailPage() {
               {record.processo_descricao}
             </p>
           ) : null}
+          {record.pdf_gerado_at ? (
+            <p className="mt-2 inline-block rounded bg-shell-accentBlue px-2 py-1 text-xs text-shell-text">
+              PDF gerado em{" "}
+              {new Date(record.pdf_gerado_at).toLocaleString("pt-BR")}
+            </p>
+          ) : null}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => void downloadPdf()}
@@ -116,22 +138,38 @@ export default function AcbaDetailPage() {
           >
             Gerar PDF
           </button>
+          {podeEditar ? (
+            <Link
+              href={`/acba/${record.id}/edit`}
+              className="rounded border border-shell-accent/50 bg-shell-accentBlue px-3 py-2 text-sm text-shell-text"
+            >
+              Editar
+            </Link>
+          ) : null}
+          {podeExcluir ? (
+            <button
+              type="button"
+              disabled={removing}
+              onClick={deleteRecord}
+              className="rounded border border-red-700/60 bg-red-950/30 px-3 py-2 text-sm text-red-300 disabled:opacity-60"
+            >
+              Excluir
+            </button>
+          ) : null}
           <Link
-            href={`/acba/${record.id}/edit`}
-            className="rounded border border-shell-accent/50 bg-shell-accentBlue px-3 py-2 text-sm text-shell-text"
+            href={`/acba/${record.id}/auditoria`}
+            className="rounded border border-shell-border bg-shell-surface px-3 py-2 text-sm text-shell-text hover:border-shell-accent hover:text-shell-accent"
           >
-            Editar
+            Auditoria
           </Link>
-          <button
-            type="button"
-            disabled={removing}
-            onClick={deleteRecord}
-            className="rounded border border-red-700/60 bg-red-950/30 px-3 py-2 text-sm text-red-300 disabled:opacity-60"
-          >
-            Excluir
-          </button>
         </div>
       </div>
+
+      {motivoBloqueioEdicao ? (
+        <p className="rounded border border-amber-700/50 bg-amber-950/30 p-3 text-xs text-amber-200">
+          {motivoBloqueioEdicao}
+        </p>
+      ) : null}
 
       {pdfError ? (
         <p className="rounded border border-red-700/60 bg-red-950/30 p-3 text-sm text-red-300">

@@ -94,3 +94,28 @@ WHERE eq.numero = '02';
 INSERT INTO processos (numero, descricao) VALUES
     ('0001234-56.2025.8.07.0001', 'Operação Aurora — investigação de organização criminosa'),
     ('0007890-12.2025.8.07.0002', 'Operação Farol — entorpecentes e lavagem de capitais');
+
+-- senhas: senha123 (bcrypt cost 12)
+INSERT INTO users (email, password_hash, full_name, role)
+VALUES
+    ('delegado.alfa@pol.gov',  '$2b$12$GsW3lxzy9w6yhlMMCxJLn.Qv2tqSqnrqXe/EAOG6sbxcN3A2DztNi', 'Dr. Carlos Andrade',  'delegado'),
+    ('delegado.bravo@pol.gov', '$2b$12$GsW3lxzy9w6yhlMMCxJLn.Qv2tqSqnrqXe/EAOG6sbxcN3A2DztNi', 'Dra. Marina Souza',   'delegado'),
+    ('escrivao.alfa@pol.gov',  '$2b$12$GsW3lxzy9w6yhlMMCxJLn.Qv2tqSqnrqXe/EAOG6sbxcN3A2DztNi', 'Pedro Oliveira',      'escrivao'),
+    ('escrivao.bravo@pol.gov', '$2b$12$GsW3lxzy9w6yhlMMCxJLn.Qv2tqSqnrqXe/EAOG6sbxcN3A2DztNi', 'Ana Lima',            'escrivao'),
+    ('agente.alfa@pol.gov',    '$2b$12$GsW3lxzy9w6yhlMMCxJLn.Qv2tqSqnrqXe/EAOG6sbxcN3A2DztNi', 'Roberto Silva',       'agente'),
+    ('agente.bravo@pol.gov',   '$2b$12$GsW3lxzy9w6yhlMMCxJLn.Qv2tqSqnrqXe/EAOG6sbxcN3A2DztNi', 'Patrícia Mendes',     'agente');
+
+UPDATE delegados SET user_id = (SELECT id FROM users WHERE email = 'delegado.alfa@pol.gov')
+WHERE matricula = '12345-X';
+UPDATE delegados SET user_id = (SELECT id FROM users WHERE email = 'delegado.bravo@pol.gov')
+WHERE matricula = '54321-Y';
+
+UPDATE escrivaos SET user_id = (SELECT id FROM users WHERE email = 'escrivao.alfa@pol.gov')
+WHERE nome = 'Pedro Oliveira';
+UPDATE escrivaos SET user_id = (SELECT id FROM users WHERE email = 'escrivao.bravo@pol.gov')
+WHERE nome = 'Ana Lima';
+
+UPDATE agentes SET user_id = (SELECT id FROM users WHERE email = 'agente.alfa@pol.gov')
+WHERE matricula = 'A-1001';
+UPDATE agentes SET user_id = (SELECT id FROM users WHERE email = 'agente.bravo@pol.gov')
+WHERE matricula = 'A-1004';

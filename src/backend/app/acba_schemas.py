@@ -231,6 +231,7 @@ class AcbaListItem(BaseModel):
     equipe_nome: str | None = None
     created_at: datetime
     materiais_pendentes_revisao: int = 0
+    pdf_gerado_at: datetime | None = None
 
 
 class AcbaDetail(BaseModel):
@@ -265,6 +266,10 @@ class AcbaDetail(BaseModel):
     created_by_user_id: int
     created_at: datetime
     updated_at: datetime
+    # Marcação do último PDF gerado (None = nunca gerado). Quando preenchido,
+    # bloqueia a edição pelo escrivão (mas não pelo delegado).
+    pdf_gerado_at: datetime | None = None
+    pdf_gerado_por_user_id: int | None = None
 
     unidade_nome: str
     delegacia_nome: str

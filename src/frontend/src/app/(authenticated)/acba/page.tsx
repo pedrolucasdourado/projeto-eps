@@ -3,10 +3,14 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/api";
 import { AcbaListItem, TipoMaterial } from "@/types/acba";
 
 export default function AcbaListPage() {
+  const { user } = useAuth();
+  // Agente nunca cria; demais papéis operacionais podem.
+  const podeCriar = user?.role === "delegado" || user?.role === "escrivao";
   const [items, setItems] = useState<AcbaListItem[]>([]);
   const [tipos, setTipos] = useState<TipoMaterial[]>([]);
   const [tipoFiltro, setTipoFiltro] = useState<number | "">("");
@@ -43,12 +47,14 @@ export default function AcbaListPage() {
         <h2 className="text-xl font-semibold text-shell-text">
           AUTO CIRCUNSTANCIADO DE BUSCA E APREENSÃO
         </h2>
-        <Link
-          href="/acba/new"
-          className="rounded-lg border border-shell-accent/50 bg-shell-accentBlue px-4 py-2 text-sm font-semibold text-shell-text"
-        >
-          Novo ACBA
-        </Link>
+        {podeCriar ? (
+          <Link
+            href="/acba/new"
+            className="rounded-lg border border-shell-accent/50 bg-shell-accentBlue px-4 py-2 text-sm font-semibold text-shell-text"
+          >
+            Novo ACBA
+          </Link>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -94,19 +100,20 @@ export default function AcbaListPage() {
               <th className="px-4 py-3">Delegado</th>
               <th className="px-4 py-3">Equipe</th>
               <th className="px-4 py-3">Revisão</th>
+              <th className="px-4 py-3">PDF</th>
               <th className="px-4 py-3">Ações</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td className="px-4 py-6 text-shell-muted" colSpan={9}>
+                <td className="px-4 py-6 text-shell-muted" colSpan={10}>
                   Carregando registros...
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td className="px-4 py-6 text-shell-muted" colSpan={9}>
+                <td className="px-4 py-6 text-shell-muted" colSpan={10}>
                   Nenhum registro encontrado.
                 </td>
               </tr>
@@ -141,6 +148,20 @@ export default function AcbaListPage() {
                     ) : (
                       <span className="rounded bg-green-900/40 px-2 py-1 text-green-200">
                         OK
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-xs">
+                    {item.pdf_gerado_at ? (
+                      <span
+                        className="rounded bg-shell-accentBlue px-2 py-1 text-shell-text"
+                        title={`Gerado em ${new Date(item.pdf_gerado_at).toLocaleString("pt-BR")}`}
+                      >
+                        Gerado
+                      </span>
+                    ) : (
+                      <span className="rounded bg-slate-800/60 px-2 py-1 text-shell-muted">
+                        —
                       </span>
                     )}
                   </td>
