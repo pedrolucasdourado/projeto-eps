@@ -8,6 +8,8 @@ from app.routers.auth import get_authenticated_user
 from app.schemas import UserPublic
 from app.schemas.catalog import (
     AgenteCreate,
+    AgenteEquipeVinculo,
+    AgenteListing,
     AgenteRead,
     AgenteUpdate,
     CidadeCreate,
@@ -445,36 +447,58 @@ def delete_escrivao_route(escrivao_id: int, *, _user: UserPublic = Depends(get_a
 # --- Agentes (cadastro de policiais operacionais) ---
 
 
-@router.get("/agentes", response_model=list[AgenteRead])
-def list_agentes(q: str | None = Query(None), _user: UserPublic = Depends(get_authenticated_user)) -> list[AgenteRead]:
+@router.get("/agentes", response_model=list[AgenteListing])
+def list_agentes(q: str | None = Query(None), _user: UserPublic = Depends(get_authenticated_user)) -> list[AgenteListing]:
     rows = catalog_repo.list_agentes(q)
-    return [AgenteRead.model_validate(r) for r in rows]
+    return [AgenteListing.model_validate(r) for r in rows]
 
 
-@router.post("/agentes", response_model=AgenteRead, status_code=status.HTTP_201_CREATED)
-def create_agente(body: AgenteCreate, *, _user: UserPublic = Depends(get_authenticated_user)) -> AgenteRead:
+@router.post("/agentes", response_model=AgenteListing, status_code=status.HTTP_201_CREATED)
+def create_agente(body: AgenteCreate, *, _user: UserPublic = Depends(get_authenticated_user)) -> AgenteListing:
     try:
         row = catalog_repo.insert_agente(body.model_dump())
     except PsycopgError as exc:
         _raise_pg(exc)
-    return AgenteRead.model_validate(row)
+    return AgenteListing.model_validate(row)
 
 
-@router.get("/agentes/{agente_id}", response_model=AgenteRead)
-def get_agente(agente_id: int, *, _user: UserPublic = Depends(get_authenticated_user)) -> AgenteRead:
+@router.get("/agentes/{agente_id}", response_model=AgenteListing)
+def get_agente(agente_id: int, *, _user: UserPublic = Depends(get_authenticated_user)) -> AgenteListing:
     row = catalog_repo.get_agente(agente_id)
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Agente não encontrado.")
-    return AgenteRead.model_validate(row)
+    return AgenteListing.model_validate(row)
 
 
-@router.put("/agentes/{agente_id}", response_model=AgenteRead)
+@router.get(
+    "/agentes/{agente_id}/equipes/historico",
+    response_model=list[AgenteEquipeVinculo],
+)
+def list_agente_equipes_historico(
+    agente_id: int,
+    *,
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> list[AgenteEquipeVinculo]:
+    """Histórico completo dos vínculos do agente com equipes operacionais.
+
+    Retorna passagens encerradas e o(s) vínculo(s) ativo(s), na ordem
+    cronológica decrescente. Ler dessa rota não exige permissão especial:
+    qualquer usuário autenticado pode consultar (mesmo critério das demais
+    leituras de cadastros).
+    """
+    if not catalog_repo.get_agente(agente_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Agente não encontrado.")
+    rows = catalog_repo.list_historico_equipes_do_agente(agente_id)
+    return [AgenteEquipeVinculo.model_validate(r) for r in rows]
+
+
+@router.put("/agentes/{agente_id}", response_model=AgenteListing)
 def update_agente(
     agente_id: int,
     body: AgenteUpdate,
     *,
     _user: UserPublic = Depends(get_authenticated_user),
-) -> AgenteRead:
+) -> AgenteListing:
     row = catalog_repo.get_agente(agente_id)
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Agente não encontrado.")
@@ -484,7 +508,7 @@ def update_agente(
     except PsycopgError as exc:
         _raise_pg(exc)
     assert updated is not None
-    return AgenteRead.model_validate(updated)
+    return AgenteListing.model_validate(updated)
 
 
 @router.delete("/agentes/{agente_id}", status_code=status.HTTP_204_NO_CONTENT)

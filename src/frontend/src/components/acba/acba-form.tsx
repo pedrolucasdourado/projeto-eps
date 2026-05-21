@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 
+import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/api";
 import type {
   AcbaDetail,
@@ -37,6 +38,19 @@ function inputClass() {
 
 function readonlyClass() {
   return "w-full rounded-lg border border-shell-border bg-shell-bg/60 px-3 py-2 text-sm text-shell-muted";
+}
+
+// Calcula data/hora local atuais no fuso do navegador. Usado apenas no
+// fluxo de criação — evitamos chamar isso no render inicial para não
+// quebrar a hidratação do Next.js (servidor x cliente em fusos diferentes).
+function nowLocalDateTime(): { date: string; time: string } {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mi = String(now.getMinutes()).padStart(2, "0");
+  return { date: `${yyyy}-${mm}-${dd}`, time: `${hh}:${mi}` };
 }
 
 function emptyTestemunha(tipo: TestemunhaTipo = "geral"): TestemunhaItem {
@@ -141,6 +155,7 @@ function detailToPayload(d: AcbaDetail): AcbaFormPayload {
 }
 
 export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
+  const { user } = useAuth();
   const [form, setForm] = useState<AcbaFormPayload>(() =>
     initialDetail ? detailToPayload(initialDetail) : emptyPayload(),
   );
@@ -169,6 +184,17 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
       setForm(detailToPayload(initialDetail));
       setAgentesPreview(initialDetail.agentes_equipe ?? []);
     }
+  }, [initialDetail]);
+
+  // Preenche data/hora locais atuais no fluxo de criação. Roda apenas no
+  // cliente (dentro de useEffect) para evitar divergência de hidratação.
+  useEffect(() => {
+    if (initialDetail) return;
+    setForm((prev) => {
+      if (prev.data_lavratura || prev.hora_lavratura) return prev;
+      const { date, time } = nowLocalDateTime();
+      return { ...prev, data_lavratura: date, hora_lavratura: time };
+    });
   }, [initialDetail]);
 
   useEffect(() => {
@@ -229,10 +255,30 @@ export function AcbaForm({ submitting, initialDetail, onSubmit }: Props) {
     });
   }, [delegacias, form.unidade_id, form.cidade_id]);
 
-  const equipesAtivas = useMemo(
-    () => equipes.filter((e) => e.ativo),
-    [equipes],
-  );
+  // Mostra apenas equipes em que o usuário operacional está vinculado:
+  // delegado → equipes lideradas por ele; escrivão → equipes em que é
+  // escrivão titular; agente → equipes onde é membro. Mantém a equipe
+  // atualmente selecionada (útil em edição de ACBA herdado).
+  const equipesAtivas = useMemo(() => {
+    const ativas = equipes.filter((e) => e.ativo);
+    if (!user) return ativas;
+    if (user.role === "administrador") return ativas;
+    const selectedId = form.equipe_id || 0;
+    const filtrar = (predicate: (e: EquipeOperacional) => boolean) =>
+      ativas.filter((e) => predicate(e) || e.id === selectedId);
+    if (user.role === "delegado" && user.delegado_id) {
+      return filtrar((e) => e.delegado_id === user.delegado_id);
+    }
+    if (user.role === "escrivao" && user.escrivao_id) {
+      return filtrar((e) => e.escrivao_id === user.escrivao_id);
+    }
+    if (user.role === "agente") {
+      // Agente não cria/edita ACBA — caímos no fallback completo apenas
+      // como segurança caso o componente seja renderizado em modo leitura.
+      return ativas;
+    }
+    return ativas;
+  }, [equipes, user, form.equipe_id]);
 
   const processosAtivos = useMemo(
     () => processos.filter((p) => p.ativo),

@@ -34,6 +34,40 @@ export type AgenteBrief = {
   funcao_padrao?: string | null;
 };
 
+export type EquipeAtualBrief = {
+  equipe_id: number;
+  equipe_numero: string;
+  equipe_nome?: string | null;
+  /** ISO date (YYYY-MM-DD) — quando o agente entrou nesta equipe. */
+  data_inicio: string;
+};
+
+export type AgenteListing = AgenteBrief & {
+  ativo: boolean;
+  created_at: string;
+  /** Vínculos de equipe abertos hoje (vazio se o agente não está em nenhuma). */
+  equipes_atuais: EquipeAtualBrief[];
+  /**
+   * Texto pronto pra tabela: "01 — Tático Alfa; 02 — Antientorpecentes".
+   * `null` quando o agente não tem vínculo ativo.
+   */
+  equipe_atual_resumo?: string | null;
+  /** ISO date — data de ingresso mais antiga ainda em vigor. */
+  primeira_data_ingresso?: string | null;
+};
+
+/** Linha do histórico equipe↔agente (passagens encerradas + ativas). */
+export type AgenteEquipeVinculo = {
+  id: number;
+  equipe_id: number;
+  equipe_numero: string;
+  equipe_nome?: string | null;
+  data_inicio: string;
+  data_fim?: string | null;
+  motivo_saida?: string | null;
+  ativo: boolean;
+};
+
 export type CategoriaDocx = "informatica" | "geral";
 
 export type SenhaTipo =

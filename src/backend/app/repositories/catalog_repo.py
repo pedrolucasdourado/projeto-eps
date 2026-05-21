@@ -518,10 +518,66 @@ def delete_escrivao(eid: int) -> None:
 # --- Agentes (membros operacionais) ---
 
 
+def _agentes_atuais_resumo(equipes: list[dict[str, Any]]) -> str | None:
+    if not equipes:
+        return None
+    return "; ".join(
+        e["equipe_numero"] + (f" — {e['equipe_nome']}" if e["equipe_nome"] else "")
+        for e in equipes
+    )
+
+
+def _enriquecer_agentes_com_equipes_atuais(
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Anexa a cada agente o vetor ``equipes_atuais`` (vínculos abertos)
+    e dois campos derivados úteis para a tabela:
+
+    * ``equipe_atual_resumo`` — texto pronto para a coluna da listagem;
+    * ``primeira_data_ingresso`` — a data de ingresso mais antiga ainda
+      em vigor (útil quando o agente está em uma equipe só).
+    """
+    if not rows:
+        return rows
+    ids = [r["id"] for r in rows]
+    vinculos = fetch_all(
+        """
+        SELECT v.agente_id,
+               e.id    AS equipe_id,
+               e.numero AS equipe_numero,
+               e.nome   AS equipe_nome,
+               v.data_inicio
+        FROM equipe_operacional_vinculos v
+        JOIN equipes_operacionais e ON e.id = v.equipe_id
+        WHERE v.agente_id = ANY(%s) AND v.data_fim IS NULL
+        ORDER BY v.data_inicio, e.numero
+        """,
+        (ids,),
+    )
+    by_agente: dict[int, list[dict[str, Any]]] = {}
+    for v in vinculos:
+        by_agente.setdefault(int(v["agente_id"]), []).append(
+            {
+                "equipe_id": int(v["equipe_id"]),
+                "equipe_numero": v["equipe_numero"],
+                "equipe_nome": v["equipe_nome"],
+                "data_inicio": v["data_inicio"],
+            }
+        )
+    for r in rows:
+        equipes = by_agente.get(int(r["id"]), [])
+        r["equipes_atuais"] = equipes
+        r["equipe_atual_resumo"] = _agentes_atuais_resumo(equipes)
+        r["primeira_data_ingresso"] = (
+            equipes[0]["data_inicio"] if equipes else None
+        )
+    return rows
+
+
 def list_agentes(q: str | None = None) -> list[dict]:
     like = _like(q)
     if like:
-        return fetch_all(
+        rows = fetch_all(
             """
             SELECT id, nome, matricula, funcao_padrao, ativo, created_at
             FROM agentes
@@ -530,21 +586,54 @@ def list_agentes(q: str | None = None) -> list[dict]:
             """,
             {"like": like},
         )
-    return fetch_all(
-        """
-        SELECT id, nome, matricula, funcao_padrao, ativo, created_at
-        FROM agentes
-        ORDER BY nome
-        """
-    )
+    else:
+        rows = fetch_all(
+            """
+            SELECT id, nome, matricula, funcao_padrao, ativo, created_at
+            FROM agentes
+            ORDER BY nome
+            """
+        )
+    return _enriquecer_agentes_com_equipes_atuais(rows)
 
 
 def get_agente(aid: int) -> dict | None:
-    return fetch_one(
+    row = fetch_one(
         """
         SELECT id, nome, matricula, funcao_padrao, ativo, created_at
         FROM agentes
         WHERE id = %s
+        """,
+        (aid,),
+    )
+    if row is None:
+        return None
+    _enriquecer_agentes_com_equipes_atuais([row])
+    return row
+
+
+def list_historico_equipes_do_agente(aid: int) -> list[dict]:
+    """Histórico completo de vínculos do agente com equipes.
+
+    Inclui vínculos ativos (``data_fim IS NULL``) e encerrados, ordenados
+    do mais recente para o mais antigo. ``ativo`` é um booleano derivado
+    para o frontend distinguir as duas categorias sem precisar olhar
+    ``data_fim``.
+    """
+    return fetch_all(
+        """
+        SELECT v.id,
+               v.equipe_id,
+               e.numero AS equipe_numero,
+               e.nome   AS equipe_nome,
+               v.data_inicio,
+               v.data_fim,
+               v.motivo_saida,
+               (v.data_fim IS NULL) AS ativo
+        FROM equipe_operacional_vinculos v
+        JOIN equipes_operacionais e ON e.id = v.equipe_id
+        WHERE v.agente_id = %s
+        ORDER BY v.data_inicio DESC, v.id DESC
         """,
         (aid,),
     )
@@ -560,11 +649,12 @@ def insert_agente(data: dict[str, Any]) -> dict:
         data,
     )
     assert row is not None
+    _enriquecer_agentes_com_equipes_atuais([row])
     return row
 
 
 def update_agente(aid: int, data: dict[str, Any]) -> dict | None:
-    return fetch_one(
+    row = fetch_one(
         """
         UPDATE agentes
         SET nome = %(nome)s,
@@ -576,6 +666,10 @@ def update_agente(aid: int, data: dict[str, Any]) -> dict | None:
         """,
         {**data, "id": aid},
     )
+    if row is None:
+        return None
+    _enriquecer_agentes_com_equipes_atuais([row])
+    return row
 
 
 def delete_agente(aid: int) -> None:
@@ -592,8 +686,8 @@ _EQUIPE_SELECT = """
            d.matricula AS delegado_matricula,
            es.nome AS escrivao_nome,
            COALESCE((
-               SELECT COUNT(*) FROM equipe_operacional_membros em
-               WHERE em.equipe_id = e.id
+               SELECT COUNT(*) FROM equipe_operacional_vinculos v
+               WHERE v.equipe_id = e.id AND v.data_fim IS NULL
            ), 0)::int AS agentes_count
     FROM equipes_operacionais e
     JOIN delegados d ON d.id = e.delegado_id
@@ -667,12 +761,13 @@ def delete_equipe(eid: int) -> None:
 
 
 def list_agentes_da_equipe(eid: int) -> list[dict]:
+    """Agentes atualmente vinculados à equipe (vínculos abertos)."""
     return fetch_all(
         """
         SELECT a.id, a.nome, a.matricula, a.funcao_padrao, a.ativo, a.created_at
-        FROM equipe_operacional_membros em
-        JOIN agentes a ON a.id = em.agente_id
-        WHERE em.equipe_id = %s
+        FROM equipe_operacional_vinculos v
+        JOIN agentes a ON a.id = v.agente_id
+        WHERE v.equipe_id = %s AND v.data_fim IS NULL
         ORDER BY a.nome
         """,
         (eid,),
@@ -680,17 +775,49 @@ def list_agentes_da_equipe(eid: int) -> list[dict]:
 
 
 def set_agentes_da_equipe(eid: int, agente_ids: list[int]) -> None:
-    execute_query("DELETE FROM equipe_operacional_membros WHERE equipe_id = %s", (eid,))
-    seen: set[int] = set()
+    """Atualiza a composição da equipe preservando o histórico.
+
+    Em vez de apagar e reinserir (o que perderia os períodos passados),
+    aplicamos um diff entre os vínculos vigentes (``data_fim IS NULL``) e
+    a lista nova:
+
+      * agentes que saíram → fecha o vínculo aberto com ``data_fim`` hoje;
+      * agentes que entraram → cria um vínculo novo com ``data_inicio`` hoje;
+      * agentes que continuam → não toca.
+    """
+    desejados: set[int] = set()
     for aid in agente_ids:
-        if aid in seen:
-            continue
-        seen.add(aid)
+        desejados.add(int(aid))
+
+    rows = fetch_all(
+        """
+        SELECT agente_id
+        FROM equipe_operacional_vinculos
+        WHERE equipe_id = %s AND data_fim IS NULL
+        """,
+        (eid,),
+    )
+    atuais: set[int] = {int(r["agente_id"]) for r in rows}
+
+    saindo = atuais - desejados
+    entrando = desejados - atuais
+
+    for aid in saindo:
         execute_query(
             """
-            INSERT INTO equipe_operacional_membros (equipe_id, agente_id)
-            VALUES (%s, %s)
-            ON CONFLICT (equipe_id, agente_id) DO NOTHING
+            UPDATE equipe_operacional_vinculos
+               SET data_fim = CURRENT_DATE
+             WHERE equipe_id = %s AND agente_id = %s AND data_fim IS NULL
+            """,
+            (eid, aid),
+        )
+
+    for aid in entrando:
+        execute_query(
+            """
+            INSERT INTO equipe_operacional_vinculos
+                (equipe_id, agente_id, data_inicio)
+            VALUES (%s, %s, CURRENT_DATE)
             """,
             (eid, aid),
         )

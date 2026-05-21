@@ -71,6 +71,10 @@ export function MaterialsDraft({ value, onChange }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [draft, setDraft] = useState<MaterialPayload | null>(null);
+  // Rola até o editor quando o usuário aciona "Adicionar material". O
+  // contador zera os efeitos quando ele apenas edita uma linha existente.
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  const [scrollOnOpen, setScrollOnOpen] = useState(0);
 
   useEffect(() => {
     void apiRequest<TipoMaterial[]>("/api/cadastros/tipos-material")
@@ -80,9 +84,15 @@ export function MaterialsDraft({ value, onChange }: Props) {
       );
   }, []);
 
+  useEffect(() => {
+    if (scrollOnOpen === 0 || !editorRef.current) return;
+    editorRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [scrollOnOpen]);
+
   function startNew() {
     setEditingIdx(null);
     setDraft(emptyDraft(tipos));
+    setScrollOnOpen((c) => c + 1);
   }
 
   function startEdit(idx: number) {
@@ -183,14 +193,16 @@ export function MaterialsDraft({ value, onChange }: Props) {
       />
 
       {draft ? (
-        <DraftEditor
-          value={draft}
-          tipos={tipos}
-          onChange={setDraft}
-          isNew={editingIdx == null}
-          onSave={saveDraft}
-          onCancel={cancelEdit}
-        />
+        <div ref={editorRef}>
+          <DraftEditor
+            value={draft}
+            tipos={tipos}
+            onChange={setDraft}
+            isNew={editingIdx == null}
+            onSave={saveDraft}
+            onCancel={cancelEdit}
+          />
+        </div>
       ) : null}
     </div>
   );

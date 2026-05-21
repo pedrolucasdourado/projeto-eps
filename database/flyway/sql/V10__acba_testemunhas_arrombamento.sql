@@ -26,7 +26,7 @@
 
 CREATE TABLE acba_testemunhas (
     id          SERIAL PRIMARY KEY,
-    acba_id     INTEGER NOT NULL REFERENCES acba_records(id) ON DELETE CASCADE,
+    acba_id     INTEGER NOT NULL REFERENCES acba_records(id) ,
     nome        VARCHAR(180) NOT NULL,
     cpf         VARCHAR(20)  NOT NULL,
     rg          VARCHAR(40)  NOT NULL,
@@ -55,7 +55,7 @@ CREATE INDEX idx_acba_testemunhas_tipo ON acba_testemunhas (acba_id, tipo);
 -- testemunha de arrombamento.
 CREATE TABLE acba_testemunhas_arrombamento (
     testemunha_id  INTEGER PRIMARY KEY
-                   REFERENCES acba_testemunhas(id) ON DELETE CASCADE,
+                   REFERENCES acba_testemunhas(id) ,
     observacoes    TEXT NOT NULL DEFAULT ''
 );
 

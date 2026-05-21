@@ -59,8 +59,8 @@ CREATE INDEX idx_acba_pdf_gerado ON acba_records (pdf_gerado_at)
 -- 5. Auditoria.
 CREATE TABLE acba_audit_log (
     id                  SERIAL PRIMARY KEY,
-    acba_id             INTEGER NOT NULL REFERENCES acba_records(id) ON DELETE CASCADE,
-    user_id             INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    acba_id             INTEGER NOT NULL REFERENCES acba_records(id),
+    user_id             INTEGER REFERENCES users(id),
     user_email          VARCHAR(255) NOT NULL,
     user_full_name      VARCHAR(255),
     user_role           VARCHAR(20) NOT NULL,

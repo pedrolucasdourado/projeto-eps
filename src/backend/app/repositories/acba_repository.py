@@ -186,6 +186,7 @@ class AcbaRepository:
         self,
         tipo_material_id: int | None = None,
         equipe_ids: list[int] | None = None,
+        temporal_agente_id: int | None = None,
     ) -> list[dict]:
         """Lista ACBAs com filtros opcionais.
 
@@ -193,6 +194,12 @@ class AcbaRepository:
           * ``None`` — sem restrição (delegado);
           * lista vazia — sem acesso a nenhuma equipe (retorna vazio rapidamente);
           * lista com IDs — restringe pelos IDs informados (escrivão/agente).
+
+        ``temporal_agente_id`` (apenas para o papel agente) restringe o
+        retorno aos ACBAs cuja ``data_lavratura`` cai dentro de algum dos
+        períodos em que o agente esteve vinculado à equipe do ACBA. Sem
+        esse filtro, um agente que pertence a duas equipes diferentes em
+        momentos distintos veria registros de fora dos seus períodos.
         """
         if equipe_ids is not None and len(equipe_ids) == 0:
             return []
@@ -209,6 +216,18 @@ class AcbaRepository:
         if equipe_ids is not None:
             extra_where += " AND a.equipe_id = ANY(%(equipe_ids)s)"
             params["equipe_ids"] = list(equipe_ids)
+        if temporal_agente_id is not None:
+            extra_where += """
+                AND EXISTS (
+                    SELECT 1 FROM equipe_operacional_vinculos v
+                    WHERE v.agente_id = %(temporal_agente_id)s
+                      AND v.equipe_id = a.equipe_id
+                      AND a.data_lavratura >= v.data_inicio
+                      AND (v.data_fim IS NULL
+                           OR a.data_lavratura <= v.data_fim)
+                )
+            """
+            params["temporal_agente_id"] = temporal_agente_id
         return fetch_all(
             f"""
             SELECT
@@ -260,15 +279,20 @@ class AcbaRepository:
         )
         if not row:
             return None
+        # Snapshot histórico: lista os agentes que estavam na equipe na
+        # data de lavratura do ACBA, considerando os períodos de vínculo
+        # (não os membros vigentes hoje).
         agentes = fetch_all(
             """
             SELECT a.id, a.nome, a.matricula, a.funcao_padrao
-            FROM equipe_operacional_membros em
-            JOIN agentes a ON a.id = em.agente_id
-            WHERE em.equipe_id = %s
+            FROM equipe_operacional_vinculos v
+            JOIN agentes a ON a.id = v.agente_id
+            WHERE v.equipe_id = %s
+              AND %s >= v.data_inicio
+              AND (v.data_fim IS NULL OR %s <= v.data_fim)
             ORDER BY a.nome
             """,
-            (row["equipe_id"],),
+            (row["equipe_id"], row["data_lavratura"], row["data_lavratura"]),
         )
         row["agentes_equipe"] = agentes
         row["testemunhas"] = _list_testemunhas(record_id)
@@ -322,7 +346,7 @@ class AcbaRepository:
                 updated = cur.fetchone()
                 if not updated:
                     return None
-                # Substitui todas as testemunhas (ON DELETE CASCADE remove a
+                # Substitui todas as testemunhas ( remove a
                 # qualificação de arrombamento associada).
                 cur.execute(
                     "DELETE FROM acba_testemunhas WHERE acba_id = %s",

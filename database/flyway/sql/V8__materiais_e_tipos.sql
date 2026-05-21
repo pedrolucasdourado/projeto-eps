@@ -35,7 +35,7 @@ CREATE TABLE tipos_material (
 
 CREATE TABLE acba_materiais (
     id                  SERIAL PRIMARY KEY,
-    acba_id             INTEGER NOT NULL REFERENCES acba_records(id) ON DELETE CASCADE,
+    acba_id             INTEGER NOT NULL REFERENCES acba_records(id),
     tipo_id             INTEGER NOT NULL REFERENCES tipos_material(id),
     categoria_docx      VARCHAR(20) NOT NULL
         CHECK (categoria_docx IN ('informatica','geral')),
@@ -60,7 +60,7 @@ CREATE INDEX idx_materiais_revisao ON acba_materiais (acba_id) WHERE revisado = 
 -- Sub-classe 1:1 — só existe quando o material é de informática.
 CREATE TABLE acba_materiais_informatica (
     material_id          INTEGER PRIMARY KEY
-                         REFERENCES acba_materiais(id) ON DELETE CASCADE,
+                         REFERENCES acba_materiais(id) ,
     senha_tipo           VARCHAR(20) NOT NULL DEFAULT 'nenhuma'
                          CHECK (senha_tipo IN
                                 ('nenhuma','texto','padrao','biometria','desconhecida')),
@@ -134,7 +134,7 @@ FOR EACH ROW EXECUTE FUNCTION trg_valida_padrao_pontos();
 -- Por (material_id, request_hash) o mesmo conjunto de imagens não é cobrado de novo.
 CREATE TABLE acba_material_ia_runs (
     id              SERIAL PRIMARY KEY,
-    material_id     INTEGER NOT NULL REFERENCES acba_materiais(id) ON DELETE CASCADE,
+    material_id     INTEGER NOT NULL REFERENCES acba_materiais(id) ,
     modelo          VARCHAR(80) NOT NULL,
     prompt_versao   VARCHAR(40) NOT NULL,
     request_hash    CHAR(64) NOT NULL,

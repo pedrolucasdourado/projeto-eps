@@ -76,18 +76,41 @@ SELECT '02', 'Equipe Antientorpecentes',
        (SELECT id FROM delegados WHERE matricula = '54321-Y'),
        (SELECT id FROM escrivaos WHERE nome = 'Ana Lima');
 
--- Vínculo agentes ↔ equipes (um agente pode estar em mais de uma equipe)
-INSERT INTO equipe_operacional_membros (equipe_id, agente_id)
-SELECT eq.id, a.id
+-- Vínculo agentes ↔ equipes (com período).
+-- O modelo é temporal: cada linha é UMA passagem do agente pela equipe,
+-- com data_inicio obrigatória e data_fim NULL enquanto o vínculo está
+-- ativo. Para os seeds, abrimos os vínculos ativos cerca de 60 dias atrás.
+
+-- Equipe '01' (Tático Alfa): Roberto, Juliana, Felipe — vínculos ativos.
+INSERT INTO equipe_operacional_vinculos (equipe_id, agente_id, data_inicio)
+SELECT eq.id, a.id, CURRENT_DATE - INTERVAL '60 days'
 FROM equipes_operacionais eq
 JOIN agentes a ON a.matricula IN ('A-1001', 'A-1002', 'A-1003')
 WHERE eq.numero = '01';
 
-INSERT INTO equipe_operacional_membros (equipe_id, agente_id)
-SELECT eq.id, a.id
+-- Equipe '02' (Antientorpecentes): Patrícia, Lucas, Renata + Roberto
+-- (mesmo agente em duas equipes simultaneamente — permitido).
+INSERT INTO equipe_operacional_vinculos (equipe_id, agente_id, data_inicio)
+SELECT eq.id, a.id, CURRENT_DATE - INTERVAL '60 days'
 FROM equipes_operacionais eq
 JOIN agentes a ON a.matricula IN ('A-1004', 'A-1005', 'A-1006', 'A-1001')
 WHERE eq.numero = '02';
+
+-- Exemplo de histórico encerrado para validar o escopo temporal:
+-- Renata Alves (A-1006) também passou pela Equipe '01' entre 180 e 90
+-- dias atrás antes de ir para a '02'. ACBAs da Equipe '01' lavrados nesse
+-- intervalo continuam visíveis para ela; ACBAs da '01' fora desse
+-- intervalo, não.
+INSERT INTO equipe_operacional_vinculos
+    (equipe_id, agente_id, data_inicio, data_fim, motivo_saida)
+SELECT eq.id,
+       a.id,
+       CURRENT_DATE - INTERVAL '180 days',
+       CURRENT_DATE - INTERVAL '90 days',
+       'Realocação para Equipe Antientorpecentes'
+FROM equipes_operacionais eq
+JOIN agentes a ON a.matricula = 'A-1006'
+WHERE eq.numero = '01';
 
 -- Processos de exemplo. Cada ACBA escolhe um processo e informa o protocolo
 -- daquela diligência diretamente no formulário (o protocolo não tem cadastro).

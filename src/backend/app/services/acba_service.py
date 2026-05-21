@@ -28,6 +28,7 @@ class AcbaService:
         rows = self.repository.list_all(
             tipo_material_id=tipo_material_id,
             equipe_ids=scope,
+            temporal_agente_id=authz.acba_temporal_agente_id(user),
         )
         return [AcbaListItem.model_validate(r) for r in rows]
 
@@ -43,6 +44,15 @@ class AcbaService:
         # para não vazar a existência do ACBA).
         scope = authz.acba_equipe_scope(user)
         if scope is not None and int(row["equipe_id"]) not in set(scope):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Registro ACBA não encontrado.",
+            )
+        # Para o agente, esconde também ACBAs lavrados fora dos períodos
+        # em que ele estava na equipe (mesmo a equipe estando no escopo).
+        if not authz.acba_visivel_para(
+            user, int(row["equipe_id"]), row["data_lavratura"]
+        ):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Registro ACBA não encontrado.",
@@ -160,7 +170,7 @@ class AcbaService:
             )
         current = AcbaDetail.model_validate(current_row)
         # Auditoria registrada ANTES da exclusão para preservar o snapshot
-        # mesmo com ON DELETE CASCADE (a entrada de auditoria também é
+        # mesmo com  (a entrada de auditoria também é
         # excluída — alternativa documentada no migration).
         audit_repo.log_audit(
             acba_id=record_id,

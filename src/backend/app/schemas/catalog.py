@@ -186,6 +186,46 @@ class AgenteRead(AgenteBase):
     created_at: datetime
 
 
+class EquipeAtualBrief(BaseModel):
+    """Resumo de uma equipe em que o agente está atualmente vinculado."""
+
+    equipe_id: int
+    equipe_numero: str
+    equipe_nome: str | None = None
+    data_inicio: date
+
+
+class AgenteListing(AgenteRead):
+    """``AgenteRead`` enriquecido para visualização em lista/detalhe.
+
+    Inclui, sem custo extra para quem só precisa do agente "puro", a
+    composição atual de equipes (vínculos abertos) e um resumo textual
+    pronto para tabelas.
+    """
+
+    equipes_atuais: list[EquipeAtualBrief] = Field(default_factory=list)
+    equipe_atual_resumo: str | None = None
+    primeira_data_ingresso: date | None = None
+
+
+class AgenteEquipeVinculo(BaseModel):
+    """Linha do histórico equipe↔agente.
+
+    Retorna todos os períodos (abertos e fechados) em que o agente
+    pertenceu àquela equipe, em ordem cronológica decrescente
+    (mais recente primeiro).
+    """
+
+    id: int
+    equipe_id: int
+    equipe_numero: str
+    equipe_nome: str | None = None
+    data_inicio: date
+    data_fim: date | None = None
+    motivo_saida: str | None = None
+    ativo: bool
+
+
 class EquipeOperacionalBase(BaseModel):
     numero: str = Field(min_length=1, max_length=40)
     nome: str | None = Field(default=None, max_length=220)

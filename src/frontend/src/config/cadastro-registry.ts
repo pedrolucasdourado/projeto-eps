@@ -17,10 +17,28 @@ export type CatalogField =
       required?: boolean;
     };
 
+export type CatalogColumn = {
+  key: string;
+  label: string;
+  /** Formatter opcional para a célula. Recebe o valor bruto e a linha inteira. */
+  format?: (value: unknown, row: Record<string, unknown>) => string;
+};
+
+/**
+ * Ação extra renderizada na coluna "Ações" de cada linha.
+ * Usada para complementar Editar/Excluir com links contextuais
+ * (ex.: "Histórico de equipes" no cadastro de agentes).
+ */
+export type CatalogRowAction = {
+  label: string;
+  /** Recebe a linha e devolve o href final (já com o id concatenado). */
+  href: (row: Record<string, unknown>) => string;
+};
+
 export type CadastroDefinition = {
   title: string;
   apiPath: string;
-  columns: { key: string; label: string }[];
+  columns: CatalogColumn[];
   fields: CatalogField[];
   /**
    * Nome do campo que identifica a linha nas rotas (PUT/DELETE) e na chave do React.
@@ -33,7 +51,24 @@ export type CadastroDefinition = {
    * (PK natural ou imutável). O input aparece desabilitado no modo edit.
    */
   identifierLocked?: boolean;
+  /** Ações extras (links) por linha, à esquerda dos botões padrão. */
+  extraRowActions?: CatalogRowAction[];
 };
+
+function formatDateBR(value: unknown): string {
+  if (value == null || value === "") return "—";
+  const s = String(value);
+  // Para "YYYY-MM-DD" puro, evita o parser do Date jogar para o dia anterior
+  // por causa do fuso (ele assume UTC quando não há TZ na string).
+  const isoDate = /^\d{4}-\d{2}-\d{2}$/.exec(s);
+  if (isoDate) {
+    const [y, m, d] = s.split("-");
+    return `${d}/${m}/${y}`;
+  }
+  const dt = new Date(s);
+  if (Number.isNaN(dt.getTime())) return s;
+  return dt.toLocaleDateString("pt-BR");
+}
 
 export const CADASTROS: Record<string, CadastroDefinition> = {
   ufs: {
@@ -191,6 +226,19 @@ export const CADASTROS: Record<string, CadastroDefinition> = {
       { key: "nome", label: "Nome" },
       { key: "matricula", label: "Matrícula" },
       { key: "funcao_padrao", label: "Função padrão" },
+      {
+        key: "equipe_atual_resumo",
+        label: "Equipe(s) atual(is)",
+        format: (value) => {
+          const s = value == null ? "" : String(value).trim();
+          return s.length > 0 ? s : "Sem vínculo ativo";
+        },
+      },
+      {
+        key: "primeira_data_ingresso",
+        label: "Data de ingresso",
+        format: (value) => formatDateBR(value),
+      },
       { key: "ativo", label: "Ativo" },
     ],
     fields: [
@@ -198,6 +246,12 @@ export const CADASTROS: Record<string, CadastroDefinition> = {
       { kind: "text", name: "matricula", label: "Matrícula", required: true },
       { kind: "text", name: "funcao_padrao", label: "Função padrão" },
       { kind: "checkbox", name: "ativo", label: "Ativo" },
+    ],
+    extraRowActions: [
+      {
+        label: "Histórico de equipes",
+        href: (row) => `/cadastros/agentes/${String(row.id)}/historico`,
+      },
     ],
   },
   "tipos-material": {

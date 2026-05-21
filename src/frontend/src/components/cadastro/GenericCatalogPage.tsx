@@ -1,8 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import type { CadastroDefinition, CatalogField } from "@/config/cadastro-registry";
+import type {
+  CadastroDefinition,
+  CatalogColumn,
+  CatalogField,
+} from "@/config/cadastro-registry";
 import { apiRequest } from "@/lib/api";
 
 function inputClass() {
@@ -183,8 +188,9 @@ export function GenericCatalogPage({ config }: { config: CadastroDefinition }) {
     }
   }
 
-  function renderCell(row: Record<string, unknown>, key: string) {
-    const v = row[key];
+  function renderCell(row: Record<string, unknown>, col: CatalogColumn) {
+    const v = row[col.key];
+    if (col.format) return col.format(v, row);
     if (typeof v === "boolean") return v ? "Sim" : "Não";
     if (v == null) return "—";
     return String(v);
@@ -259,10 +265,19 @@ export function GenericCatalogPage({ config }: { config: CadastroDefinition }) {
                 >
                   {config.columns.map((c) => (
                     <td key={c.key} className="px-4 py-3 text-shell-text">
-                      {renderCell(row, c.key)}
+                      {renderCell(row, c)}
                     </td>
                   ))}
                   <td className="space-x-2 px-4 py-3">
+                    {(config.extraRowActions ?? []).map((action) => (
+                      <Link
+                        key={action.label}
+                        href={action.href(row)}
+                        className="text-shell-accent hover:underline"
+                      >
+                        {action.label}
+                      </Link>
+                    ))}
                     <button
                       type="button"
                       className="text-shell-accent hover:underline"

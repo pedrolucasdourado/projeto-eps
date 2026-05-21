@@ -70,6 +70,11 @@ export function MaterialsManager({ acbaId }: Props) {
   const [editing, setEditing] = useState<MaterialPayload | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  // Quando o usuário aciona "Adicionar material" queremos rolar o
+  // formulário em foco; `scrollOnOpen` controla isso para não rolar ao
+  // editar um item já visível na tabela.
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  const [scrollOnOpen, setScrollOnOpen] = useState(0);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -92,9 +97,15 @@ export function MaterialsManager({ acbaId }: Props) {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    if (scrollOnOpen === 0 || !editorRef.current) return;
+    editorRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [scrollOnOpen]);
+
   function startNew() {
     setEditing(emptyMaterial(tipos));
     setEditingId(null);
+    setScrollOnOpen((c) => c + 1);
   }
 
   function startEdit(m: MaterialItem) {
@@ -246,17 +257,19 @@ export function MaterialsManager({ acbaId }: Props) {
       )}
 
       {editing ? (
-        <MaterialEditor
-          acbaId={acbaId}
-          tipos={tipos}
-          value={editing}
-          onChange={setEditing}
-          saving={saving}
-          isNew={editingId == null}
-          materialId={editingId}
-          onSave={() => void save()}
-          onCancel={cancelEdit}
-        />
+        <div ref={editorRef}>
+          <MaterialEditor
+            acbaId={acbaId}
+            tipos={tipos}
+            value={editing}
+            onChange={setEditing}
+            saving={saving}
+            isNew={editingId == null}
+            materialId={editingId}
+            onSave={() => void save()}
+            onCancel={cancelEdit}
+          />
+        </div>
       ) : null}
     </div>
   );
