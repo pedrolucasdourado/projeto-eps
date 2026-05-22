@@ -6,6 +6,7 @@ from psycopg2 import Error as PsycopgError
 from app.repositories import catalog_repo
 from app.routers.auth import get_authenticated_user
 from app.schemas import UserPublic
+from app.services import authz
 from app.schemas.catalog import (
     AgenteCreate,
     AgenteEquipeVinculo,
@@ -351,7 +352,12 @@ def list_delegados(
 
 
 @router.post("/delegados", response_model=DelegadoRead, status_code=status.HTTP_201_CREATED)
-def create_delegado(body: DelegadoCreate, *, _user: UserPublic = Depends(get_authenticated_user)) -> DelegadoRead:
+def create_delegado(
+    body: DelegadoCreate,
+    *,
+    user: UserPublic = Depends(get_authenticated_user),
+) -> DelegadoRead:
+    authz.assert_role(user, ["administrador"])
     row = catalog_repo.insert_delegado(body.model_dump())
     return DelegadoRead.model_validate(row)
 
@@ -369,8 +375,9 @@ def update_delegado(
     delegado_id: int,
     body: DelegadoUpdate,
     *,
-    _user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(get_authenticated_user),
 ) -> DelegadoRead:
+    authz.assert_role(user, ["administrador"])
     row = catalog_repo.get_delegado(delegado_id)
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Delegado não encontrado.")
@@ -385,7 +392,12 @@ def update_delegado(
 
 
 @router.delete("/delegados/{delegado_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_delegado(delegado_id: int, *, _user: UserPublic = Depends(get_authenticated_user)) -> None:
+def delete_delegado(
+    delegado_id: int,
+    *,
+    user: UserPublic = Depends(get_authenticated_user),
+) -> None:
+    authz.assert_role(user, ["administrador"])
     try:
         catalog_repo.delete_delegado(delegado_id)
     except PsycopgError as exc:
@@ -407,7 +419,12 @@ def list_escrivaos_route(
 
 
 @router.post("/escrivaos", response_model=EscrivaoRead, status_code=status.HTTP_201_CREATED)
-def create_escrivao(body: EscrivaoCreate, *, _user: UserPublic = Depends(get_authenticated_user)) -> EscrivaoRead:
+def create_escrivao(
+    body: EscrivaoCreate,
+    *,
+    user: UserPublic = Depends(get_authenticated_user),
+) -> EscrivaoRead:
+    authz.assert_role(user, ["administrador"])
     row = catalog_repo.insert_escrivao(body.model_dump())
     return EscrivaoRead.model_validate(row)
 
@@ -425,8 +442,9 @@ def update_escrivao_route(
     escrivao_id: int,
     body: EscrivaoUpdate,
     *,
-    _user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(get_authenticated_user),
 ) -> EscrivaoRead:
+    authz.assert_role(user, ["administrador"])
     row = catalog_repo.get_escrivao(escrivao_id)
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Escrivão não encontrado.")
@@ -437,7 +455,12 @@ def update_escrivao_route(
 
 
 @router.delete("/escrivaos/{escrivao_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_escrivao_route(escrivao_id: int, *, _user: UserPublic = Depends(get_authenticated_user)) -> None:
+def delete_escrivao_route(
+    escrivao_id: int,
+    *,
+    user: UserPublic = Depends(get_authenticated_user),
+) -> None:
+    authz.assert_role(user, ["administrador"])
     try:
         catalog_repo.delete_escrivao(escrivao_id)
     except PsycopgError as exc:
@@ -454,7 +477,12 @@ def list_agentes(q: str | None = Query(None), _user: UserPublic = Depends(get_au
 
 
 @router.post("/agentes", response_model=AgenteListing, status_code=status.HTTP_201_CREATED)
-def create_agente(body: AgenteCreate, *, _user: UserPublic = Depends(get_authenticated_user)) -> AgenteListing:
+def create_agente(
+    body: AgenteCreate,
+    *,
+    user: UserPublic = Depends(get_authenticated_user),
+) -> AgenteListing:
+    authz.assert_role(user, ["administrador"])
     try:
         row = catalog_repo.insert_agente(body.model_dump())
     except PsycopgError as exc:
@@ -497,8 +525,9 @@ def update_agente(
     agente_id: int,
     body: AgenteUpdate,
     *,
-    _user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(get_authenticated_user),
 ) -> AgenteListing:
+    authz.assert_role(user, ["administrador"])
     row = catalog_repo.get_agente(agente_id)
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Agente não encontrado.")
@@ -512,7 +541,12 @@ def update_agente(
 
 
 @router.delete("/agentes/{agente_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_agente(agente_id: int, *, _user: UserPublic = Depends(get_authenticated_user)) -> None:
+def delete_agente(
+    agente_id: int,
+    *,
+    user: UserPublic = Depends(get_authenticated_user),
+) -> None:
+    authz.assert_role(user, ["administrador"])
     try:
         catalog_repo.delete_agente(agente_id)
     except PsycopgError as exc:

@@ -32,6 +32,7 @@ build/
 *.egg-info/
 .venv/
 venv/
+.venv-security/
 
 # Node / Next.js
 node_modules/

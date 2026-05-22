@@ -53,6 +53,13 @@ export type CadastroDefinition = {
   identifierLocked?: boolean;
   /** Ações extras (links) por linha, à esquerda dos botões padrão. */
   extraRowActions?: CatalogRowAction[];
+  /**
+   * Quando true, criação/edição/exclusão só estão disponíveis para o
+   * papel ``administrador``. Demais papéis enxergam o cadastro em
+   * modo somente-leitura (sem botões Novo/Editar/Excluir). O backend
+   * espelha a regra: POST/PUT/DELETE retornam 403 para não-admins.
+   */
+  adminOnlyMutations?: boolean;
 };
 
 function formatDateBR(value: unknown): string {
@@ -162,6 +169,7 @@ export const CADASTROS: Record<string, CadastroDefinition> = {
   delegados: {
     title: "Delegados",
     apiPath: "/api/cadastros/delegados",
+    adminOnlyMutations: true,
     columns: [
       { key: "nome", label: "Nome" },
       { key: "matricula", label: "Matrícula" },
@@ -193,6 +201,7 @@ export const CADASTROS: Record<string, CadastroDefinition> = {
   escrivaos: {
     title: "Escrivãos",
     apiPath: "/api/cadastros/escrivaos",
+    adminOnlyMutations: true,
     columns: [
       { key: "nome", label: "Nome" },
       { key: "delegacia_nome", label: "Delegacia" },
@@ -222,6 +231,7 @@ export const CADASTROS: Record<string, CadastroDefinition> = {
   agentes: {
     title: "Agentes",
     apiPath: "/api/cadastros/agentes",
+    adminOnlyMutations: true,
     columns: [
       { key: "nome", label: "Nome" },
       { key: "matricula", label: "Matrícula" },

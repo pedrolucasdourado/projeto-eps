@@ -49,21 +49,19 @@ function navItemsForRole(role: UserRole): NavItem[] {
   ];
 }
 
-/** Quais cadastros aparecem para cada papel. Administrador vê todos. */
-function visibleCadastros(role: UserRole) {
-  if (role === "administrador") return cadastroLinks;
-  // Demais papéis enxergam cadastros auxiliares só em modo leitura (o
-  // backend não restringe leitura, então mantemos os links de consulta);
-  // exclusões/edições retornam 400/403 quando dependem de admin.
-  return cadastroLinks.filter(
-    (l) =>
-      ![
-        // Esconde a gestão de pessoas — só o admin gerencia esses cadastros.
-        "delegados",
-        "escrivaos",
-        "agentes",
-      ].includes(l.slug as string),
-  );
+/**
+ * Quais cadastros aparecem para cada papel.
+ *
+ * Administrador vê todos (e pode mutar).
+ * Delegado vê todos também, mas os cadastros de pessoas (delegados,
+ * escrivãos, agentes) entram em modo somente-leitura — a restrição
+ * fica na ``GenericCatalogPage`` via ``adminOnlyMutations``, e o
+ * backend também devolve 403 em POST/PUT/DELETE nessas rotas.
+ * Escrivão e agente não chegam a ver a seção "Cadastros" (a sidebar
+ * já esconde — ver ``showCadastros`` abaixo).
+ */
+function visibleCadastros(_role: UserRole) {
+  return cadastroLinks;
 }
 
 function roleLabel(role: UserRole): string {

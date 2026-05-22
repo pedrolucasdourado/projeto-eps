@@ -8,6 +8,7 @@ import type {
   CatalogColumn,
   CatalogField,
 } from "@/config/cadastro-registry";
+import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/api";
 
 function inputClass() {
@@ -53,6 +54,18 @@ function serializePayload(fields: CatalogField[], raw: Record<string, string | b
 
 export function GenericCatalogPage({ config }: { config: CadastroDefinition }) {
   const idField = config.idField ?? "id";
+  const { user } = useAuth();
+  /**
+   * Quando o cadastro está marcado como ``adminOnlyMutations`` e o usuário
+   * logado não é administrador, a tela entra em modo somente-leitura:
+   * sem botão de criar, sem editar, sem excluir. As ações extras (links
+   * para sub-páginas, como o histórico de equipes do agente) continuam
+   * visíveis — leitura ainda é permitida para o papel.
+   */
+  const canMutate =
+    !config.adminOnlyMutations || user?.role === "administrador";
+  const showActions =
+    canMutate || (config.extraRowActions?.length ?? 0) > 0;
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
@@ -199,14 +212,24 @@ export function GenericCatalogPage({ config }: { config: CadastroDefinition }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-shell-text">{config.title}</h2>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="rounded-lg border border-shell-accent/50 bg-shell-accentBlue px-4 py-2 text-sm font-semibold text-shell-text"
-        >
-          Novo registro
-        </button>
+        <div>
+          <h2 className="text-xl font-semibold text-shell-text">{config.title}</h2>
+          {!canMutate ? (
+            <p className="text-xs text-shell-muted">
+              Somente leitura — apenas o administrador pode cadastrar,
+              editar ou excluir registros aqui.
+            </p>
+          ) : null}
+        </div>
+        {canMutate ? (
+          <button
+            type="button"
+            onClick={openCreate}
+            className="rounded-lg border border-shell-accent/50 bg-shell-accentBlue px-4 py-2 text-sm font-semibold text-shell-text"
+          >
+            Novo registro
+          </button>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -241,19 +264,25 @@ export function GenericCatalogPage({ config }: { config: CadastroDefinition }) {
                   {c.label}
                 </th>
               ))}
-              <th className="px-4 py-3">Ações</th>
+              {showActions ? <th className="px-4 py-3">Ações</th> : null}
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={config.columns.length + 1} className="px-4 py-6 text-shell-muted">
+                <td
+                  colSpan={config.columns.length + (showActions ? 1 : 0)}
+                  className="px-4 py-6 text-shell-muted"
+                >
                   Carregando...
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={config.columns.length + 1} className="px-4 py-6 text-shell-muted">
+                <td
+                  colSpan={config.columns.length + (showActions ? 1 : 0)}
+                  className="px-4 py-6 text-shell-muted"
+                >
                   Nenhum registro.
                 </td>
               </tr>
@@ -268,31 +297,37 @@ export function GenericCatalogPage({ config }: { config: CadastroDefinition }) {
                       {renderCell(row, c)}
                     </td>
                   ))}
-                  <td className="space-x-2 px-4 py-3">
-                    {(config.extraRowActions ?? []).map((action) => (
-                      <Link
-                        key={action.label}
-                        href={action.href(row)}
-                        className="text-shell-accent hover:underline"
-                      >
-                        {action.label}
-                      </Link>
-                    ))}
-                    <button
-                      type="button"
-                      className="text-shell-accent hover:underline"
-                      onClick={() => openEdit(row)}
-                    >
-                      Editar
-                    </button>
-                    <button
-                      type="button"
-                      className="text-red-300 hover:underline"
-                      onClick={() => removeRow(String(row[idField]))}
-                    >
-                      Excluir
-                    </button>
-                  </td>
+                  {showActions ? (
+                    <td className="space-x-2 px-4 py-3">
+                      {(config.extraRowActions ?? []).map((action) => (
+                        <Link
+                          key={action.label}
+                          href={action.href(row)}
+                          className="text-shell-accent hover:underline"
+                        >
+                          {action.label}
+                        </Link>
+                      ))}
+                      {canMutate ? (
+                        <>
+                          <button
+                            type="button"
+                            className="text-shell-accent hover:underline"
+                            onClick={() => openEdit(row)}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            className="text-red-300 hover:underline"
+                            onClick={() => removeRow(String(row[idField]))}
+                          >
+                            Excluir
+                          </button>
+                        </>
+                      ) : null}
+                    </td>
+                  ) : null}
                 </tr>
               ))
             )}
