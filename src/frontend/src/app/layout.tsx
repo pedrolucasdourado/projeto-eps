@@ -13,6 +13,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Assistente de Apreensão Inteligente",
   description: "Plataforma de apoio à gestão de apreensões.",
+  icons: {
+    icon: "/logo.png",
+  },
 };
 
 export default function RootLayout({
