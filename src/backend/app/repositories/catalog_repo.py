@@ -82,14 +82,16 @@ def list_cidades(q: str | None = None, uf_id: int | None = None) -> list[dict]:
     if like:
         where.append("c.nome ILIKE %(like)s")
         params["like"] = like
-    sql = f"""
+    sql = (
+        """
         SELECT c.id, c.nome, c.uf_id, u.sigla AS uf_sigla, u.nome AS uf_nome,
                c.ativo, c.created_at
         FROM cidades c
         JOIN ufs u ON u.id = c.uf_id
-        WHERE {' AND '.join(where)}
-        ORDER BY u.sigla, c.nome
-    """
+        WHERE """
+        + " AND ".join(where)
+        + "\n        ORDER BY u.sigla, c.nome"
+    )
     return fetch_all(sql, params)
 
 
@@ -219,7 +221,8 @@ def list_delegacias(
     if like:
         where.append("d.nome ILIKE %(like)s")
         params["like"] = like
-    sql = f"""
+    sql = (
+        """
         SELECT d.id, d.nome, d.unidade_id, d.cidade_id, d.ativo, d.created_at,
                u.nome AS unidade_nome,
                c.nome AS cidade_nome,
@@ -228,9 +231,10 @@ def list_delegacias(
         LEFT JOIN unidades_responsaveis u ON u.id = d.unidade_id
         LEFT JOIN cidades c ON c.id = d.cidade_id
         LEFT JOIN ufs uf ON uf.id = c.uf_id
-        WHERE {' AND '.join(where)}
-        ORDER BY d.nome
-    """
+        WHERE """
+        + " AND ".join(where)
+        + "\n        ORDER BY d.nome"
+    )
     return fetch_all(sql, params)
 
 
@@ -368,16 +372,18 @@ def list_delegados(
             "(d.nome ILIKE %(like)s OR COALESCE(d.matricula,'') ILIKE %(like)s)"
         )
         params["like"] = like
-    sql = f"""
+    sql = (
+        """
         SELECT d.id, d.nome, d.matricula, d.delegacia_id, d.unidade_id, d.ativo, d.created_at,
                dl.nome AS delegacia_nome,
                u.nome AS unidade_nome
         FROM delegados d
         LEFT JOIN delegacias dl ON dl.id = d.delegacia_id
         LEFT JOIN unidades_responsaveis u ON u.id = d.unidade_id
-        WHERE {' AND '.join(where)}
-        ORDER BY d.nome
-    """
+        WHERE """
+        + " AND ".join(where)
+        + "\n        ORDER BY d.nome"
+    )
     return fetch_all(sql, params)
 
 
@@ -452,16 +458,18 @@ def list_escrivaos(
     if like:
         where.append("e.nome ILIKE %(like)s")
         params["like"] = like
-    sql = f"""
+    sql = (
+        """
         SELECT e.id, e.nome, e.delegacia_id, e.unidade_id, e.ativo, e.created_at,
                d.nome AS delegacia_nome,
                u.nome AS unidade_nome
         FROM escrivaos e
         LEFT JOIN delegacias d ON d.id = e.delegacia_id
         LEFT JOIN unidades_responsaveis u ON u.id = e.unidade_id
-        WHERE {' AND '.join(where)}
-        ORDER BY e.nome
-    """
+        WHERE """
+        + " AND ".join(where)
+        + "\n        ORDER BY e.nome"
+    )
     return fetch_all(sql, params)
 
 
@@ -702,20 +710,18 @@ def list_equipes(q: str | None = None) -> list[dict]:
     if like:
         where.append("(e.numero ILIKE %(like)s OR COALESCE(e.nome,'') ILIKE %(like)s)")
         params["like"] = like
-    sql = f"""
-        {_EQUIPE_SELECT}
-        WHERE {' AND '.join(where)}
-        ORDER BY e.numero
-    """
+    sql = (
+        _EQUIPE_SELECT
+        + "\n        WHERE "
+        + " AND ".join(where)
+        + "\n        ORDER BY e.numero"
+    )
     return fetch_all(sql, params)
 
 
 def get_equipe(eid: int) -> dict | None:
     return fetch_one(
-        f"""
-        {_EQUIPE_SELECT}
-        WHERE e.id = %s
-        """,
+        _EQUIPE_SELECT + "\n        WHERE e.id = %s",
         (eid,),
     )
 
@@ -858,27 +864,18 @@ def list_processos(q: str | None = None) -> list[dict]:
     like = _like(q)
     if like:
         return fetch_all(
-            f"""
-            {_PROCESSO_SELECT}
-            WHERE p.numero ILIKE %(like)s OR COALESCE(p.descricao, '') ILIKE %(like)s
-            ORDER BY p.numero
-            """,
+            _PROCESSO_SELECT
+            + "\n            WHERE p.numero ILIKE %(like)s"
+            + " OR COALESCE(p.descricao, '') ILIKE %(like)s"
+            + "\n            ORDER BY p.numero",
             {"like": like},
         )
-    return fetch_all(
-        f"""
-        {_PROCESSO_SELECT}
-        ORDER BY p.numero
-        """
-    )
+    return fetch_all(_PROCESSO_SELECT + "\n        ORDER BY p.numero")
 
 
 def get_processo(numero: str) -> dict | None:
     return fetch_one(
-        f"""
-        {_PROCESSO_SELECT}
-        WHERE p.numero = %s
-        """,
+        _PROCESSO_SELECT + "\n        WHERE p.numero = %s",
         (numero,),
     )
 

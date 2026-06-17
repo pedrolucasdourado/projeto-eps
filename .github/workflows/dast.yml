@@ -1,0 +1,73 @@
+# DAST - Dynamic Application Security Testing com OWASP ZAP
+# Sprint 1: arquivo criado como planejamento do ambiente mínimo.
+# Sprint 2: ativar substituindo o trigger abaixo por [push, pull_request].
+name: DAST-ZAP
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  zap-scan:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:16
+        env:
+          POSTGRES_USER: aai
+          POSTGRES_PASSWORD: aai_secret
+          POSTGRES_DB: aai_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependências do backend
+        run: pip install -r src/backend/requirements.txt
+
+      - name: Inicializar banco de dados (migrations)
+        run: |
+          cd src/backend
+          python -m app.db_init || true
+        env:
+          DATABASE_URL: postgresql://aai:aai_secret@localhost:5432/aai_db
+          JWT_SECRET: ci-secret-only
+          JWT_ALGORITHM: HS256
+
+      - name: Iniciar servidor da aplicação em background
+        run: |
+          cd src/backend
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          # aguarda o servidor responder antes de iniciar o scan
+          timeout 30 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
+        env:
+          DATABASE_URL: postgresql://aai:aai_secret@localhost:5432/aai_db
+          JWT_SECRET: ci-secret-only
+          JWT_ALGORITHM: HS256
+
+      - name: DAST - OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: http://localhost:8000
+          # TODO Sprint 2: adicionar regras de autenticação para cobrir endpoints protegidos
+          # rules_file_name: .zap/rules.tsv
+          fail_action: false
+
+      - name: Publicar relatório ZAP
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-report
+          path: report_html.html

@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError
 
 from app.config import settings
 from app.db import fetch_user_by_email, fetch_user_by_id
@@ -41,7 +42,7 @@ def decode_token(token: str) -> dict | None:
             settings.jwt_secret,
             algorithms=[settings.jwt_algorithm],
         )
-    except JWTError:
+    except InvalidTokenError:
         return None
 
 

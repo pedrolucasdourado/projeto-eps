@@ -228,8 +228,8 @@ class AcbaRepository:
                 )
             """
             params["temporal_agente_id"] = temporal_agente_id
-        return fetch_all(
-            f"""
+        sql = (
+            """
             SELECT
                 a.id,
                 a.processo_numero,
@@ -246,16 +246,17 @@ class AcbaRepository:
                     SELECT COUNT(*)::int FROM acba_materiais m
                     WHERE m.acba_id = a.id AND m.revisado = FALSE
                 ), 0) AS materiais_pendentes_revisao
-            {_ACBA_JOIN_BLOCK}
-            WHERE 1=1 {extra_where}
-            ORDER BY a.created_at DESC
-            """,
-            params,
+            """
+            + _ACBA_JOIN_BLOCK
+            + "\n            WHERE 1=1"
+            + extra_where
+            + "\n            ORDER BY a.created_at DESC"
         )
+        return fetch_all(sql, params)
 
     def get_by_id(self, record_id: int) -> dict | None:
         row = fetch_one(
-            f"""
+            """
             SELECT
                 a.*,
                 u.nome AS unidade_nome,
@@ -272,9 +273,9 @@ class AcbaRepository:
                 dl.nome AS delegado_nome,
                 dl.matricula AS delegado_matricula,
                 es.nome AS escrivao_nome
-            {_ACBA_JOIN_BLOCK}
-            WHERE a.id = %s
-            """,
+            """
+            + _ACBA_JOIN_BLOCK
+            + "\n            WHERE a.id = %s",
             (record_id,),
         )
         if not row:

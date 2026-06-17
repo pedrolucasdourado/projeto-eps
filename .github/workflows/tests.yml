@@ -1,0 +1,106 @@
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  unit:
+    name: Testes unitários
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependências
+        run: pip install -r src/backend/requirements.txt
+
+      - name: Rodar testes unitários com cobertura
+        working-directory: src/backend
+        run: pytest -m unit --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost/dummy
+          JWT_SECRET: test-secret-ci
+          JWT_ALGORITHM: HS256
+
+      - name: Publicar relatório de cobertura
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-unit
+          path: src/backend/coverage.xml
+
+  integration:
+    name: Testes de integração (API + banco real)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: aai
+          POSTGRES_PASSWORD: aai_secret
+          POSTGRES_DB: aai_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependências
+        run: pip install -r src/backend/requirements.txt
+
+      - name: Aplicar migrations no banco de teste
+        run: |
+          for f in $(ls database/flyway/sql/V*.sql | sort -V); do
+            PGPASSWORD=aai_secret psql -h localhost -U aai -d aai_db -f "$f" || true
+          done
+
+      - name: Rodar testes de integração
+        working-directory: src/backend
+        run: pytest -m integration --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml
+        env:
+          DATABASE_URL: postgresql://aai:aai_secret@localhost:5432/aai_db
+          JWT_SECRET: test-secret-ci
+          JWT_ALGORITHM: HS256
+
+      - name: Publicar relatório de cobertura
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-integration
+          path: src/backend/coverage.xml
+
+  bdd:
+    name: Testes BDD (comportamento)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependências
+        run: pip install -r src/backend/requirements.txt
+
+      - name: Rodar cenários BDD
+        working-directory: src/backend
+        run: pytest -m bdd --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost/dummy
+          JWT_SECRET: test-secret-ci
+          JWT_ALGORITHM: HS256
+
+      - name: Publicar relatório de cobertura BDD
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-bdd
+          path: src/backend/coverage.xml
