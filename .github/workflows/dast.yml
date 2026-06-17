@@ -58,7 +58,7 @@ jobs:
           JWT_ALGORITHM: HS256
 
       - name: DAST - OWASP ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.12.0
+        uses: zaproxy/action-baseline@v0.15.0
         with:
           target: http://localhost:8000
           # TODO Sprint 2: adicionar regras de autenticação para cobrir endpoints protegidos
