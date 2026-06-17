@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
 import { useAuth } from "@/contexts/auth-context";
+import { publicPath } from "@/lib/public-path";
 
 export default function LoginPage() {
   const { ready, token, login } = useAuth();
@@ -38,7 +39,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-2xl border border-shell-border bg-shell-surface p-8 shadow-2xl">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <Image
-            src="/logo.png"
+            src={publicPath("/logo.png")}
             alt="Assistente de Apreensão Inteligente"
             width={72}
             height={72}
