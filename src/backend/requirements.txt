@@ -9,7 +9,7 @@ email-validator==2.2.0
 python-docx==1.1.2
 docxtpl==0.19.1
 Jinja2>=3.1.6
-weasyprint==63.1
+weasyprint==69.0
 Pillow==11.0.0
 google-genai==0.8.0
 pytest==9.0.3
