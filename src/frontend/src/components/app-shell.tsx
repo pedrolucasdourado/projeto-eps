@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 
 import { CADASTROS } from "@/config/cadastro-registry";
 import { useAuth, type UserRole } from "@/contexts/auth-context";
+import { publicPath } from "@/lib/public-path";
 
 type NavItem = { href: string; label: string };
 
@@ -86,7 +87,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside className="flex w-72 flex-col border-r border-shell-border bg-shell-sidebar text-shell-text shadow-2xl">
         <div className="flex items-center gap-3 border-b border-shell-border px-6 py-6">
           <Image
-            src="/logo.png"
+            src={publicPath("/logo.png")}
             alt="Assistente de Apreensão Inteligente"
             width={44}
             height={44}
