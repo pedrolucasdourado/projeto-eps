@@ -41,6 +41,15 @@ app.include_router(materiais.router, prefix="/api/acba", tags=["Materiais"])
 app.include_router(users.router, prefix="/api/users", tags=["Usuários"])
 
 
+@app.get("/")
+def root() -> dict[str, str]:
+    return {
+        "service": "Assistente de Apreensão Inteligente",
+        "status": "online",
+        "docs": "/docs",
+    }
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
