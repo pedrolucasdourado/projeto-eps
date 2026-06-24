@@ -59,6 +59,7 @@ def test_list_by_acba_delegates_to_repo(svc, monkeypatch):
     def fake_list(acba_id, tipo_id=None, categoria_docx=None):
         captured["acba_id"] = acba_id
         captured["tipo_id"] = tipo_id
+        captured["categoria_docx"] = categoria_docx
         return [_row()]
 
     monkeypatch.setattr(repo, "list_by_acba", fake_list)

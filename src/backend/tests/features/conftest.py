@@ -11,7 +11,6 @@ from app.schemas import UserPublic
 
 @pytest.fixture
 def bdd_client():
-    app.dependency_overrides.clear()
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()

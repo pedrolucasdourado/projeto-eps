@@ -1,6 +1,7 @@
 """BDD: cenários de gerenciamento de ACBA (acba.feature)."""
 from __future__ import annotations
 
+import re
 from datetime import date, datetime, timezone
 
 import pytest
@@ -12,6 +13,76 @@ pytestmark = pytest.mark.bdd
 
 scenarios("acba.feature")
 
+
+def _acba_payload(bdd_ctx: dict, **overrides) -> dict:
+    payload = {
+        "processo_numero": "PROC-BDD",
+        "protocolo_numero": "ACBA-BDD",
+        "unidade_id": 1,
+        "delegacia_id": 1,
+        "cidade_id": 1,
+        "data_lavratura": "2026-01-15",
+        "hora_lavratura": "10:00:00",
+        "tipo_procedimento_id": 1,
+        "procedimento_numero": "IPL-BDD",
+        "fundamento_legal": "Mandado judicial",
+        "endereco_busca": "Rua BDD, 1",
+        "alvo_busca": "Alvo BDD",
+        "assinatura_responsavel": "Delegado BDD",
+        "observacoes": "",
+        "equipe_id": bdd_ctx.get("team_id", 1),
+        "morador_nome": "Morador BDD",
+        "morador_cpf": "00000000000",
+        "morador_rg": "123456",
+        "morador_filiacao": "Filiação BDD",
+        "morador_telefone": "61999990000",
+        "testemunhas": [],
+        "materiais": [],
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _acba_detail_stub(**overrides) -> dict:
+    now = datetime(2026, 1, 15, 10, 0, tzinfo=timezone.utc)
+    detail = {
+        "id": 1,
+        "processo_numero": "PROC-BDD",
+        "protocolo_numero": "ACBA-BDD",
+        "unidade_id": 1,
+        "delegacia_id": 1,
+        "cidade_id": 1,
+        "data_lavratura": date(2026, 1, 15),
+        "hora_lavratura": "10:00:00",
+        "tipo_procedimento_id": 1,
+        "procedimento_numero": "IPL-BDD",
+        "fundamento_legal": "Mandado judicial",
+        "endereco_busca": "Rua BDD, 1",
+        "alvo_busca": "Alvo BDD",
+        "assinatura_responsavel": "Delegado BDD",
+        "observacoes": "",
+        "created_by_user_id": 1,
+        "created_at": now,
+        "updated_at": now,
+        "unidade_nome": "Unidade BDD",
+        "delegacia_nome": "Delegacia BDD",
+        "cidade_nome": "Brasília",
+        "uf_sigla": "DF",
+        "uf_nome": "Distrito Federal",
+        "tipo_procedimento_nome": "IPL",
+        "equipe_id": 1,
+        "equipe_numero": "EQ-1",
+        "equipe_nome": "Equipe BDD",
+        "delegado_id": 1,
+        "delegado_nome": "Delegado BDD",
+        "escrivao_id": 1,
+        "escrivao_nome": "Escrivão BDD",
+        "agentes_equipe": [],
+        "testemunhas": [],
+        "materiais": [],
+    }
+    detail.update(overrides)
+    return detail
 
 # ---------------------------------------------------------------------------
 # Dado (Given)
@@ -78,7 +149,7 @@ def delegado_generico(bdd_ctx, bdd_auth_as):
 
 @given(parsers.parse("existem ACBAs das equipes {teams}"))
 def acbas_de_equipes(bdd_ctx, teams):
-    bdd_ctx["equipes"] = [int(t.strip()) for t in teams.split(",")]
+    bdd_ctx["equipes"] = [int(n) for n in re.findall(r"\d+", teams)]
 
 
 @given(
@@ -93,7 +164,7 @@ def acba_com_pdf(bdd_ctx, monkeypatch, team_id):
         def get_by_id(self, acba_id, *, user):
             return {}
 
-        def update(self, acba_id, payload, *, user):
+        def update(self, acba_id, payload, *, user, ip=None, user_agent=None):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Este ACBA já teve o PDF gerado.",
@@ -116,8 +187,8 @@ def acba_com_pdf_delegado(bdd_ctx, monkeypatch):
         def get_by_id(self, acba_id, *, user):
             return {}
 
-        def update(self, acba_id, payload, *, user):
-            return {}
+        def update(self, acba_id, payload, *, user, ip=None, user_agent=None):
+            return _acba_detail_stub(protocolo_numero=payload.protocolo_numero)
 
     monkeypatch.setattr(acba, "service", FakeService())
     return bdd_ctx
@@ -135,36 +206,16 @@ def post_acba_valido(bdd_ctx, bdd_client, path, monkeypatch):
     from app.routers import acba
 
     class FakeService:
-        def create(self, payload, *, user):
-            return {"id": 99, "protocolo_numero": payload.get("protocolo_numero", "ACBA-BDD")}
+        def create(self, payload, *, user, ip=None, user_agent=None):
+            return _acba_detail_stub(
+                id=99,
+                protocolo_numero=payload.protocolo_numero,
+            )
 
     monkeypatch.setattr(acba, "service", FakeService())
     bdd_ctx["response"] = bdd_client.post(
         path,
-        json={
-            "processo_numero": "PROC-BDD",
-            "protocolo_numero": "ACBA-BDD",
-            "unidade_id": 1,
-            "delegacia_id": 1,
-            "cidade_id": 1,
-            "data_lavratura": "2026-01-15",
-            "hora_lavratura": "10:00:00",
-            "tipo_procedimento_id": 1,
-            "procedimento_numero": "IPL-BDD",
-            "fundamento_legal": "Mandado judicial",
-            "endereco_busca": "Rua BDD, 1",
-            "alvo_busca": "Alvo BDD",
-            "assinatura_responsavel": "Delegado BDD",
-            "observacoes": "",
-            "equipe_id": bdd_ctx.get("team_id", 1),
-            "morador_nome": "Morador BDD",
-            "morador_cpf": "00000000000",
-            "morador_rg": "123456",
-            "morador_filiacao": "Filiação BDD",
-            "morador_telefone": "61999990000",
-            "testemunhas": [],
-            "materiais": [],
-        },
+        json=_acba_payload(bdd_ctx),
     )
 
 
@@ -173,9 +224,12 @@ def get_acba_list(bdd_ctx, bdd_client, path, monkeypatch):
     from app.routers import acba
 
     team_ids = bdd_ctx.get("equipes", [bdd_ctx.get("team_id", 1)])
+    from app.services import authz
 
     class FakeService:
         def list_all(self, *, user, tipo_material_id=None):
+            scope = authz.acba_equipe_scope(user)
+            visible = team_ids if scope is None else [t for t in team_ids if t in scope]
             return [
                 {
                     "id": i,
@@ -191,7 +245,7 @@ def get_acba_list(bdd_ctx, bdd_client, path, monkeypatch):
                     "materiais_pendentes_revisao": 0,
                     "pdf_gerado_at": None,
                 }
-                for i, tid in enumerate(team_ids, start=1)
+                for i, tid in enumerate(visible, start=1)
             ]
 
     monkeypatch.setattr(acba, "service", FakeService())
@@ -204,17 +258,11 @@ def get_acba_list(bdd_ctx, bdd_client, path, monkeypatch):
     )
 )
 def put_acba(bdd_ctx, bdd_client, path, monkeypatch):
-    from app.routers import acba as acba_router
-
-    if "service" not in str(type(acba_router.service)):
-        class FakeService:
-            def update(self, acba_id, payload, *, user):
-                return {}
-
-        monkeypatch.setattr(acba_router, "service", FakeService())
-
     clean = path.replace("{id}", "1")
-    bdd_ctx["response"] = bdd_client.put(clean, json={"protocolo_numero": "ACBA-EDIT"})
+    bdd_ctx["response"] = bdd_client.put(
+        clean,
+        json=_acba_payload(bdd_ctx, protocolo_numero="ACBA-EDIT"),
+    )
 
 
 @when(parsers.parse('eu envio uma requisição DELETE para "{path}"'))

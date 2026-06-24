@@ -1,6 +1,8 @@
 """BDD: cenários de controle de acesso (rbac.feature)."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
 
@@ -100,7 +102,11 @@ def autenticado_escrivao(bdd_ctx, bdd_auth_as, monkeypatch):
 
 
 @when(parsers.parse('eu envio uma requisição GET para "{path}"'))
-def get_path(bdd_ctx, bdd_client, path):
+def get_path(bdd_ctx, bdd_client, path, monkeypatch):
+    if path.startswith("/api/users"):
+        from app.services import users_service
+
+        monkeypatch.setattr(users_service, "list_users", lambda role=None, q=None: [])
     bdd_ctx["response"] = bdd_client.get(path)
 
 
@@ -128,7 +134,17 @@ def post_path_valid(bdd_ctx, bdd_client, path, monkeypatch):
     from app.repositories import catalog_repo
 
     if "cadastros/ufs" in path:
-        monkeypatch.setattr(catalog_repo, "insert_uf", lambda payload: {"id": 1, "sigla": "GO", "nome": "Goiás", "ativo": True, "created_at": None})
+        monkeypatch.setattr(
+            catalog_repo,
+            "insert_uf",
+            lambda payload: {
+                "id": 1,
+                "sigla": "GO",
+                "nome": "Goiás",
+                "ativo": True,
+                "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+            },
+        )
         bdd_ctx["response"] = bdd_client.post(path, json={"sigla": "GO", "nome": "Goiás", "ativo": True})
     else:
         bdd_ctx["response"] = bdd_client.post(path, json={})

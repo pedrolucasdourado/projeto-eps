@@ -5,7 +5,7 @@ from app.config import settings
 from app.repositories import audit_repo
 from app.routers.auth import get_authenticated_user
 from app.schemas import UserPublic
-from app.services import acba_docx_pdf_service, acba_html_pdf_service
+from app.services import acba_docx_pdf_service, acba_html_pdf_service, authz
 from app.services.acba_service import AcbaService
 
 router = APIRouter()
@@ -22,10 +22,43 @@ def _client_info(request: Request) -> tuple[str | None, str | None]:
     return ip, ua
 
 
+def _user_can_access_acba(
+    user: UserPublic = Depends(get_authenticated_user),
+) -> UserPublic:
+    authz.assert_can_access_acba(user)
+    return user
+
+
+def _user_can_create_acba(
+    user: UserPublic = Depends(get_authenticated_user),
+) -> UserPublic:
+    authz.assert_can_create_acba(user)
+    return user
+
+
+def _user_can_update_acba(
+    user: UserPublic = Depends(get_authenticated_user),
+) -> UserPublic:
+    authz.assert_can_access_acba(user)
+    if user.role == "agente":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Agentes não podem editar ACBA.",
+        )
+    return user
+
+
+def _user_can_delete_acba(
+    user: UserPublic = Depends(get_authenticated_user),
+) -> UserPublic:
+    authz.assert_can_delete_acba(user)
+    return user
+
+
 @router.get("/", response_model=list[AcbaListItem])
 def list_records(
     tipo_material_id: int | None = Query(default=None, ge=1),
-    user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(_user_can_access_acba),
 ) -> list[AcbaListItem]:
     return service.list_all(user=user, tipo_material_id=tipo_material_id)
 
@@ -34,7 +67,7 @@ def list_records(
 def create_record(
     payload: AcbaCreate,
     request: Request,
-    user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(_user_can_create_acba),
 ) -> AcbaDetail:
     ip, ua = _client_info(request)
     return service.create(payload, user=user, ip=ip, user_agent=ua)
@@ -44,7 +77,7 @@ def create_record(
 def generate_pdf(
     record_id: int,
     request: Request,
-    user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(_user_can_access_acba),
 ) -> Response:
     record = service.get_by_id(record_id, user=user)
     service.assert_pdf_pronto(record)
@@ -84,7 +117,7 @@ def generate_pdf(
 @router.get("/{record_id}", response_model=AcbaDetail)
 def get_record(
     record_id: int,
-    user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(_user_can_access_acba),
 ) -> AcbaDetail:
     return service.get_by_id(record_id, user=user)
 
@@ -94,7 +127,7 @@ def update_record(
     record_id: int,
     payload: AcbaUpdate,
     request: Request,
-    user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(_user_can_update_acba),
 ) -> AcbaDetail:
     ip, ua = _client_info(request)
     return service.update(record_id, payload, user=user, ip=ip, user_agent=ua)
@@ -104,7 +137,7 @@ def update_record(
 def delete_record(
     record_id: int,
     request: Request,
-    user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(_user_can_delete_acba),
 ) -> Response:
     ip, ua = _client_info(request)
     service.delete(record_id, user=user, ip=ip, user_agent=ua)
@@ -117,7 +150,7 @@ def delete_record(
 @router.get("/{record_id}/auditoria")
 def list_audit(
     record_id: int,
-    user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(_user_can_access_acba),
 ) -> list[dict]:
     """Histórico (resumido) das alterações de um ACBA.
 
@@ -135,7 +168,7 @@ def list_audit(
 def get_audit_entry(
     record_id: int,
     audit_id: int,
-    user: UserPublic = Depends(get_authenticated_user),
+    user: UserPublic = Depends(_user_can_access_acba),
 ) -> dict:
     """Devolve uma entrada completa (com snapshots before/after)."""
     service.get_by_id(record_id, user=user)

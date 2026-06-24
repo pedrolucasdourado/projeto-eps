@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, NoReturn
 
 from fastapi import HTTPException, status
 from psycopg2 import Error as PsycopgError
@@ -71,7 +71,7 @@ class MaterialService:
     def count_pendentes_revisao(self, acba_id: int) -> int:
         return repo.count_pendentes_revisao(acba_id)
 
-    def _raise_pg(self, exc: PsycopgError) -> None:
+    def _raise_pg(self, exc: PsycopgError) -> NoReturn:
         code = getattr(exc, "pgcode", None)
         if code == "23503":
             raise HTTPException(
