@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
 import { AuthProvider } from "@/contexts/auth-context";
+import { publicPath } from "@/lib/public-path";
 
 import "./globals.css";
 
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
   title: "Assistente de Apreensão Inteligente",
   description: "Plataforma de apoio à gestão de apreensões.",
   icons: {
-    icon: "/logo.png",
+    icon: publicPath("/logo.png"),
   },
 };
 
