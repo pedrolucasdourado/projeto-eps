@@ -19,6 +19,48 @@ _ACBA_JOIN_BLOCK = """
     JOIN escrivaos es ON es.id = eq.escrivao_id
 """
 
+_LIST_ALL_ACBA_SQL = """
+    SELECT
+        a.id,
+        a.processo_numero,
+        a.protocolo_numero,
+        a.data_lavratura,
+        a.alvo_busca,
+        a.created_at,
+        a.pdf_gerado_at,
+        d.nome AS delegacia_nome,
+        dl.nome AS delegado_nome,
+        eq.numero AS equipe_numero,
+        eq.nome AS equipe_nome,
+        COALESCE((
+            SELECT COUNT(*)::int FROM acba_materiais m
+            WHERE m.acba_id = a.id AND m.revisado = FALSE
+        ), 0) AS materiais_pendentes_revisao
+    FROM acba_records a
+    JOIN processos pr ON pr.numero = a.processo_numero
+    JOIN unidades_responsaveis u ON u.id = a.unidade_id
+    JOIN delegacias d ON d.id = a.delegacia_id
+    JOIN cidades c ON c.id = a.cidade_id
+    JOIN ufs uf ON uf.id = c.uf_id
+    JOIN tipos_procedimento tp ON tp.id = a.tipo_procedimento_id
+    JOIN equipes_operacionais eq ON eq.id = a.equipe_id
+    JOIN delegados dl ON dl.id = eq.delegado_id
+    JOIN escrivaos es ON es.id = eq.escrivao_id
+    WHERE (%(tipo_material_id)s IS NULL OR EXISTS (
+        SELECT 1 FROM acba_materiais m
+        WHERE m.acba_id = a.id AND m.tipo_id = %(tipo_material_id)s
+    ))
+    AND (NOT %(filter_equipes)s OR a.equipe_id = ANY(%(equipe_ids)s))
+    AND (%(temporal_agente_id)s IS NULL OR EXISTS (
+        SELECT 1 FROM equipe_operacional_vinculos v
+        WHERE v.agente_id = %(temporal_agente_id)s
+          AND v.equipe_id = a.equipe_id
+          AND a.data_lavratura >= v.data_inicio
+          AND (v.data_fim IS NULL OR a.data_lavratura <= v.data_fim)
+    ))
+    ORDER BY a.created_at DESC
+"""
+
 
 _INSERT_ACBA_SQL = """
     INSERT INTO acba_records (
@@ -203,56 +245,13 @@ class AcbaRepository:
         """
         if equipe_ids is not None and len(equipe_ids) == 0:
             return []
-        params: dict[str, Any] = {}
-        extra_where = ""
-        if tipo_material_id is not None:
-            extra_where += """
-                AND EXISTS (
-                    SELECT 1 FROM acba_materiais m
-                    WHERE m.acba_id = a.id AND m.tipo_id = %(tipo_material_id)s
-                )
-            """
-            params["tipo_material_id"] = tipo_material_id
-        if equipe_ids is not None:
-            extra_where += " AND a.equipe_id = ANY(%(equipe_ids)s)"
-            params["equipe_ids"] = list(equipe_ids)
-        if temporal_agente_id is not None:
-            extra_where += """
-                AND EXISTS (
-                    SELECT 1 FROM equipe_operacional_vinculos v
-                    WHERE v.agente_id = %(temporal_agente_id)s
-                      AND v.equipe_id = a.equipe_id
-                      AND a.data_lavratura >= v.data_inicio
-                      AND (v.data_fim IS NULL
-                           OR a.data_lavratura <= v.data_fim)
-                )
-            """
-            params["temporal_agente_id"] = temporal_agente_id
-        sql = (
-            """
-            SELECT
-                a.id,
-                a.processo_numero,
-                a.protocolo_numero,
-                a.data_lavratura,
-                a.alvo_busca,
-                a.created_at,
-                a.pdf_gerado_at,
-                d.nome AS delegacia_nome,
-                dl.nome AS delegado_nome,
-                eq.numero AS equipe_numero,
-                eq.nome AS equipe_nome,
-                COALESCE((
-                    SELECT COUNT(*)::int FROM acba_materiais m
-                    WHERE m.acba_id = a.id AND m.revisado = FALSE
-                ), 0) AS materiais_pendentes_revisao
-            """
-            + _ACBA_JOIN_BLOCK
-            + "\n            WHERE 1=1"
-            + extra_where
-            + "\n            ORDER BY a.created_at DESC"
-        )
-        return fetch_all(sql, params)
+        params: dict[str, Any] = {
+            "tipo_material_id": tipo_material_id,
+            "filter_equipes": equipe_ids is not None,
+            "equipe_ids": list(equipe_ids) if equipe_ids is not None else [],
+            "temporal_agente_id": temporal_agente_id,
+        }
+        return fetch_all(_LIST_ALL_ACBA_SQL, params)
 
     def get_by_id(self, record_id: int) -> dict | None:
         row = fetch_one(

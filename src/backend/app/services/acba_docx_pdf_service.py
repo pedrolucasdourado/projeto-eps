@@ -42,7 +42,7 @@ def render_acba_pdf_bytes(detail: AcbaDetail) -> bytes:
         doc.save(docx_path)
 
         soffice = _find_libreoffice()
-        env = {**os.environ, "HOME": "/tmp"}
+        env = {**os.environ, "HOME": tmpdir}
         subprocess.run(
             [
                 soffice,

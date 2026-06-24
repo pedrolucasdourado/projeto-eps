@@ -116,6 +116,30 @@ def delete_user(user_id: int) -> None:
 
 # --- Vínculos com cadastros operacionais -----------------------------------
 
+_CADASTRO_LINK_SQL = {
+    "delegado": "UPDATE delegados SET user_id = %s WHERE id = %s",
+    "escrivao": "UPDATE escrivaos SET user_id = %s WHERE id = %s",
+    "agente": "UPDATE agentes SET user_id = %s WHERE id = %s",
+}
+
+_CADASTRO_EXISTS_SQL = {
+    "delegado": "SELECT id, user_id FROM delegados WHERE id = %s",
+    "escrivao": "SELECT id, user_id FROM escrivaos WHERE id = %s",
+    "agente": "SELECT id, user_id FROM agentes WHERE id = %s",
+}
+
+_CADASTRO_OWNER_SQL = {
+    "delegado": "SELECT user_id FROM delegados WHERE id = %s",
+    "escrivao": "SELECT user_id FROM escrivaos WHERE id = %s",
+    "agente": "SELECT user_id FROM agentes WHERE id = %s",
+}
+
+_UNLINK_USER_SQL = (
+    "UPDATE delegados SET user_id = NULL WHERE user_id = %s",
+    "UPDATE escrivaos SET user_id = NULL WHERE user_id = %s",
+    "UPDATE agentes SET user_id = NULL WHERE user_id = %s",
+)
+
 
 def link_user_to_cadastro(role: str, cadastro_id: int, user_id: int | None) -> None:
     """Atualiza ``user_id`` na tabela de cadastro do papel correspondente.
@@ -123,51 +147,30 @@ def link_user_to_cadastro(role: str, cadastro_id: int, user_id: int | None) -> N
     Passa-se ``user_id=None`` para desvincular. Usa UPDATE direto; UNIQUE no
     cadastro garante 1↔1.
     """
-    table = {
-        "delegado": "delegados",
-        "escrivao": "escrivaos",
-        "agente": "agentes",
-    }.get(role)
-    if table is None:
+    sql = _CADASTRO_LINK_SQL.get(role)
+    if sql is None:
         raise ValueError(f"Papel sem tabela de cadastro: {role}")
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                f"UPDATE {table} SET user_id = %s WHERE id = %s",
-                (user_id, cadastro_id),
-            )
+            cur.execute(sql, (user_id, cadastro_id))
 
 
 def cadastro_existe_e_livre(role: str, cadastro_id: int) -> bool:
     """Confere se o cadastro existe e ainda não está ligado a outro usuário."""
-    table = {
-        "delegado": "delegados",
-        "escrivao": "escrivaos",
-        "agente": "agentes",
-    }.get(role)
-    if table is None:
+    sql = _CADASTRO_EXISTS_SQL.get(role)
+    if sql is None:
         return False
-    row = fetch_one(
-        f"SELECT id, user_id FROM {table} WHERE id = %s",
-        (cadastro_id,),
-    )
+    row = fetch_one(sql, (cadastro_id,))
     if not row:
         return False
     return row["user_id"] is None
 
 
 def cadastro_dono_user_id(role: str, cadastro_id: int) -> int | None:
-    table = {
-        "delegado": "delegados",
-        "escrivao": "escrivaos",
-        "agente": "agentes",
-    }.get(role)
-    if table is None:
+    sql = _CADASTRO_OWNER_SQL.get(role)
+    if sql is None:
         return None
-    row = fetch_one(
-        f"SELECT user_id FROM {table} WHERE id = %s",
-        (cadastro_id,),
-    )
+    row = fetch_one(sql, (cadastro_id,))
     return None if not row else row["user_id"]
 
 
@@ -175,8 +178,5 @@ def desvincular_qualquer(user_id: int) -> None:
     """Garante que o usuário não está mais ligado a nenhum cadastro."""
     with get_connection() as conn:
         with conn.cursor() as cur:
-            for table in ("delegados", "escrivaos", "agentes"):
-                cur.execute(
-                    f"UPDATE {table} SET user_id = NULL WHERE user_id = %s",
-                    (user_id,),
-                )
+            for sql in _UNLINK_USER_SQL:
+                cur.execute(sql, (user_id,))

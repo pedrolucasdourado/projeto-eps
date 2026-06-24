@@ -166,7 +166,7 @@
       <tr>
         <td style="text-align:center">{{ m.item_num }}</td>
         <td>{{ m.descricao_completa }}</td>
-        <td>{{ m.senha_render }}</td>
+        <td>{% if m.senha_pattern_b64 %}<img class="senha-padrao" alt="Padrão de desbloqueio" src="data:image/png;base64,{{ m.senha_pattern_b64 }}" />{% else %}{{ m.senha_render }}{% endif %}</td>
       </tr>
       {% else %}
       <tr>

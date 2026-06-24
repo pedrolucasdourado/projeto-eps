@@ -6,7 +6,7 @@ import base64
 import io
 from typing import Any, Callable
 
-from markupsafe import Markup
+from markupsafe import escape
 
 from app.acba_schemas import AcbaDetail
 from app.services.pattern_image import render_pattern_png
@@ -64,25 +64,30 @@ def _format_senha_docx(m: dict, doc: Any) -> Any:
     return "—"
 
 
-def _format_senha_html(m: dict) -> str | Markup:
+def _senha_pattern_png_b64(m: dict) -> str | None:
+    """Gera PNG base64 do padrão de desbloqueio (conteúdo gerado internamente)."""
+    inf = m.get("informatica") or {}
+    if inf.get("senha_tipo") != "padrao":
+        return None
+    pontos = inf.get("senha_padrao_pontos") or []
+    try:
+        png = render_pattern_png(pontos, size=240)
+        return base64.b64encode(png).decode("ascii")
+    except Exception:
+        return None
+
+
+def _format_senha_html(m: dict) -> str:
     inf = m.get("informatica") or {}
     tipo = inf.get("senha_tipo") or "nenhuma"
     if tipo == "texto":
-        return inf.get("senha_texto") or "—"
+        return escape(inf.get("senha_texto") or "—")
     if tipo == "padrao":
         pontos = inf.get("senha_padrao_pontos") or []
-        try:
-            png = render_pattern_png(pontos, size=240)
-            b64 = base64.b64encode(png).decode("ascii")
-            return Markup(
-                f'<img class="senha-padrao" alt="Padrão de desbloqueio" '
-                f'src="data:image/png;base64,{b64}" />'
-            )
-        except Exception:
-            return "Padrão: " + " → ".join(str(p) for p in pontos)
+        return "Padrão: " + " → ".join(str(p) for p in pontos)
     if tipo == "biometria":
         extra = inf.get("senha_observacao") or ""
-        return f"Biometria {('— ' + extra) if extra else ''}".strip()
+        return escape(f"Biometria {('— ' + extra) if extra else ''}".strip())
     if tipo == "desconhecida":
         return "Desconhecida"
     return "—"
@@ -217,6 +222,7 @@ def build_context(
     def _enrich(m: dict) -> dict:
         out = dict(m)
         out["descricao_completa"] = _material_descricao(m)
+        out["senha_pattern_b64"] = _senha_pattern_png_b64(m)
         out["senha_render"] = senha_formatter(m)
         return out
 

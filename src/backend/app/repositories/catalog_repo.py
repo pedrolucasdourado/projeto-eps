@@ -74,25 +74,18 @@ def delete_uf(uf_id: int) -> None:
 
 def list_cidades(q: str | None = None, uf_id: int | None = None) -> list[dict]:
     like = _like(q)
-    params: dict[str, Any] = {}
-    where = ["1=1"]
-    if uf_id is not None:
-        where.append("c.uf_id = %(uf_id)s")
-        params["uf_id"] = uf_id
-    if like:
-        where.append("c.nome ILIKE %(like)s")
-        params["like"] = like
-    sql = (
+    return fetch_all(
         """
         SELECT c.id, c.nome, c.uf_id, u.sigla AS uf_sigla, u.nome AS uf_nome,
                c.ativo, c.created_at
         FROM cidades c
         JOIN ufs u ON u.id = c.uf_id
-        WHERE """
-        + " AND ".join(where)
-        + "\n        ORDER BY u.sigla, c.nome"
+        WHERE (%(uf_id)s IS NULL OR c.uf_id = %(uf_id)s)
+          AND (%(like)s IS NULL OR c.nome ILIKE %(like)s)
+        ORDER BY u.sigla, c.nome
+        """,
+        {"uf_id": uf_id, "like": like},
     )
-    return fetch_all(sql, params)
 
 
 def get_cidade(cid: int) -> dict | None:
@@ -210,18 +203,7 @@ def list_delegacias(
     cidade_id: int | None = None,
 ) -> list[dict]:
     like = _like(q)
-    params: dict[str, Any] = {}
-    where = ["1=1"]
-    if unidade_id is not None:
-        where.append("d.unidade_id = %(unidade_id)s")
-        params["unidade_id"] = unidade_id
-    if cidade_id is not None:
-        where.append("d.cidade_id = %(cidade_id)s")
-        params["cidade_id"] = cidade_id
-    if like:
-        where.append("d.nome ILIKE %(like)s")
-        params["like"] = like
-    sql = (
+    return fetch_all(
         """
         SELECT d.id, d.nome, d.unidade_id, d.cidade_id, d.ativo, d.created_at,
                u.nome AS unidade_nome,
@@ -231,11 +213,17 @@ def list_delegacias(
         LEFT JOIN unidades_responsaveis u ON u.id = d.unidade_id
         LEFT JOIN cidades c ON c.id = d.cidade_id
         LEFT JOIN ufs uf ON uf.id = c.uf_id
-        WHERE """
-        + " AND ".join(where)
-        + "\n        ORDER BY d.nome"
+        WHERE (%(unidade_id)s IS NULL OR d.unidade_id = %(unidade_id)s)
+          AND (%(cidade_id)s IS NULL OR d.cidade_id = %(cidade_id)s)
+          AND (%(like)s IS NULL OR d.nome ILIKE %(like)s)
+        ORDER BY d.nome
+        """,
+        {
+            "unidade_id": unidade_id,
+            "cidade_id": cidade_id,
+            "like": like,
+        },
     )
-    return fetch_all(sql, params)
 
 
 def get_delegacia(did: int) -> dict | None:
@@ -359,20 +347,7 @@ def list_delegados(
     unidade_id: int | None = None,
 ) -> list[dict]:
     like = _like(q)
-    params: dict[str, Any] = {}
-    where = ["1=1"]
-    if delegacia_id is not None:
-        where.append("d.delegacia_id = %(delegacia_id)s")
-        params["delegacia_id"] = delegacia_id
-    if unidade_id is not None:
-        where.append("d.unidade_id = %(unidade_id)s")
-        params["unidade_id"] = unidade_id
-    if like:
-        where.append(
-            "(d.nome ILIKE %(like)s OR COALESCE(d.matricula,'') ILIKE %(like)s)"
-        )
-        params["like"] = like
-    sql = (
+    return fetch_all(
         """
         SELECT d.id, d.nome, d.matricula, d.delegacia_id, d.unidade_id, d.ativo, d.created_at,
                dl.nome AS delegacia_nome,
@@ -380,11 +355,21 @@ def list_delegados(
         FROM delegados d
         LEFT JOIN delegacias dl ON dl.id = d.delegacia_id
         LEFT JOIN unidades_responsaveis u ON u.id = d.unidade_id
-        WHERE """
-        + " AND ".join(where)
-        + "\n        ORDER BY d.nome"
+        WHERE (%(delegacia_id)s IS NULL OR d.delegacia_id = %(delegacia_id)s)
+          AND (%(unidade_id)s IS NULL OR d.unidade_id = %(unidade_id)s)
+          AND (
+              %(like)s IS NULL
+              OR d.nome ILIKE %(like)s
+              OR COALESCE(d.matricula, '') ILIKE %(like)s
+          )
+        ORDER BY d.nome
+        """,
+        {
+            "delegacia_id": delegacia_id,
+            "unidade_id": unidade_id,
+            "like": like,
+        },
     )
-    return fetch_all(sql, params)
 
 
 def get_delegado(did: int) -> dict | None:
@@ -447,18 +432,7 @@ def list_escrivaos(
     unidade_id: int | None = None,
 ) -> list[dict]:
     like = _like(q)
-    params: dict[str, Any] = {}
-    where = ["1=1"]
-    if delegacia_id is not None:
-        where.append("e.delegacia_id = %(delegacia_id)s")
-        params["delegacia_id"] = delegacia_id
-    if unidade_id is not None:
-        where.append("e.unidade_id = %(unidade_id)s")
-        params["unidade_id"] = unidade_id
-    if like:
-        where.append("e.nome ILIKE %(like)s")
-        params["like"] = like
-    sql = (
+    return fetch_all(
         """
         SELECT e.id, e.nome, e.delegacia_id, e.unidade_id, e.ativo, e.created_at,
                d.nome AS delegacia_nome,
@@ -466,11 +440,17 @@ def list_escrivaos(
         FROM escrivaos e
         LEFT JOIN delegacias d ON d.id = e.delegacia_id
         LEFT JOIN unidades_responsaveis u ON u.id = e.unidade_id
-        WHERE """
-        + " AND ".join(where)
-        + "\n        ORDER BY e.nome"
+        WHERE (%(delegacia_id)s IS NULL OR e.delegacia_id = %(delegacia_id)s)
+          AND (%(unidade_id)s IS NULL OR e.unidade_id = %(unidade_id)s)
+          AND (%(like)s IS NULL OR e.nome ILIKE %(like)s)
+        ORDER BY e.nome
+        """,
+        {
+            "delegacia_id": delegacia_id,
+            "unidade_id": unidade_id,
+            "like": like,
+        },
     )
-    return fetch_all(sql, params)
 
 
 def get_escrivao(eid: int) -> dict | None:

@@ -1,0 +1,2 @@
+[bandit]
+exclude = /venv,/.venv,/.venv-security,/node_modules,/dist,/build,/__pycache__
