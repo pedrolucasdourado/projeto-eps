@@ -13,6 +13,8 @@ from app.main import app  # noqa: E402
 from app.routers import auth as auth_router  # noqa: E402
 from app.schemas import UserPublic  # noqa: E402
 
+pytest_plugins = ["tests.conftest_db"]
+
 
 @pytest.fixture
 def client():

@@ -3,35 +3,8 @@ name: Tests
 on: [push, pull_request]
 
 jobs:
-  unit:
-    name: Testes unitários
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-
-      - name: Instalar dependências
-        run: pip install -r src/backend/requirements.txt
-
-      - name: Rodar testes unitários com cobertura
-        working-directory: src/backend
-        run: pytest -m unit --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml
-        env:
-          DATABASE_URL: postgresql://dummy:dummy@localhost/dummy
-          JWT_SECRET: test-secret-ci
-          JWT_ALGORITHM: HS256
-
-      - name: Publicar relatório de cobertura
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-unit
-          path: src/backend/coverage.xml
-
-  integration:
-    name: Testes de integração (API + banco real)
+  test:
+    name: Testes completos + cobertura ≥ 90%
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -60,13 +33,14 @@ jobs:
 
       - name: Aplicar migrations no banco de teste
         run: |
+          set -euo pipefail
           for f in $(ls database/flyway/sql/V*.sql | sort -V); do
-            PGPASSWORD=aai_secret psql -h localhost -U aai -d aai_db -f "$f" || true
+            PGPASSWORD=aai_secret psql -h localhost -U aai -d aai_db -f "$f"
           done
 
-      - name: Rodar testes de integração
+      - name: Rodar suíte completa com gate de cobertura
         working-directory: src/backend
-        run: pytest -m integration --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml
+        run: pytest --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=90
         env:
           DATABASE_URL: postgresql://aai:aai_secret@localhost:5432/aai_db
           JWT_SECRET: test-secret-ci
@@ -74,33 +48,7 @@ jobs:
 
       - name: Publicar relatório de cobertura
         uses: actions/upload-artifact@v7
+        if: always()
         with:
-          name: coverage-integration
-          path: src/backend/coverage.xml
-
-  bdd:
-    name: Testes BDD (comportamento)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-
-      - name: Instalar dependências
-        run: pip install -r src/backend/requirements.txt
-
-      - name: Rodar cenários BDD
-        working-directory: src/backend
-        run: pytest -m bdd --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml
-        env:
-          DATABASE_URL: postgresql://dummy:dummy@localhost/dummy
-          JWT_SECRET: test-secret-ci
-          JWT_ALGORITHM: HS256
-
-      - name: Publicar relatório de cobertura BDD
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-bdd
+          name: coverage-report
           path: src/backend/coverage.xml
