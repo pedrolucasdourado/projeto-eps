@@ -4,7 +4,7 @@ from typing import Any
 
 from psycopg2.extras import RealDictCursor
 
-from app.db import fetch_all, fetch_one, get_connection
+from app.db import ensure, fetch_all, fetch_one, get_connection
 
 
 _USER_SELECT_LIST = """
@@ -76,7 +76,7 @@ def insert_user(
                 (email.strip().lower(), password_hash, full_name, role, ativo),
             )
             row = cur.fetchone()
-            assert row is not None
+            row = ensure(row)
             return int(row["id"])
 
 

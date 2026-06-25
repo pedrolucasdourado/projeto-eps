@@ -1,5 +1,4 @@
 from fastapi import HTTPException, status
-from psycopg2 import Error
 
 from app.acba_schemas import AcbaCreate, AcbaDetail, AcbaListItem, AcbaUpdate
 from app.config import settings
@@ -244,9 +243,10 @@ class AcbaService:
 
     @staticmethod
     def _reraise_pg(exc: Exception, *, on_update: bool) -> None:
-        if not isinstance(exc, Error):
+        pgcode = getattr(exc, "pgcode", None)
+        if pgcode is None:
             return
-        if exc.pgcode == "23505":
+        if pgcode == "23505":
             detail = (
                 "Já existe um material com este número de item nesta tabela "
                 "do auto. Ajuste o número ou deixe em branco para usar o próximo."
@@ -256,13 +256,13 @@ class AcbaService:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, detail=detail
             ) from exc
-        if exc.pgcode == "23503":
+        if pgcode == "23503":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Processo informado não está cadastrado, "
                 "ou um tipo de material informado não existe.",
             ) from exc
-        if exc.pgcode == "23514":
+        if pgcode == "23514":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(

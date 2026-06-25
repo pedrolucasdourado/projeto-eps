@@ -17,10 +17,10 @@ from fastapi import (
     status,
 )
 
-from app.repositories import catalog_repo, materiais_repository as repo
-from app.routers.auth import get_authenticated_user
 from pydantic import BaseModel, Field
 
+from app.repositories import catalog_repo, materiais_repository as repo
+from app.routers.auth import get_authenticated_user
 from app.schemas import UserPublic
 from app.schemas.materiais import (
     DescribeResponse,
@@ -29,13 +29,13 @@ from app.schemas.materiais import (
     MaterialRead,
     MaterialUpdate,
 )
+from app.services.acba_service import AcbaService
+from app.services.gemini_vision_service import descrever_material
+from app.services.materiais_service import MaterialService
 
 
 class RevisarBody(BaseModel):
     descricao: str = Field(min_length=1)
-from app.services.acba_service import AcbaService
-from app.services.gemini_vision_service import descrever_material
-from app.services.materiais_service import MaterialService
 
 
 def _tipos_ativos_para_ia() -> list[dict]:

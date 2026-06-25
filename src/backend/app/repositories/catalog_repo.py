@@ -1,6 +1,6 @@
 from typing import Any
 
-from app.db import execute_query, fetch_all, fetch_one
+from app.db import ensure, execute_query, fetch_all, fetch_one
 
 
 def _like(q: str | None) -> str | None:
@@ -49,7 +49,7 @@ def insert_uf(data: dict[str, Any]) -> dict:
         """,
         data,
     )
-    assert row is not None
+    row = ensure(row)
     return row
 
 
@@ -109,9 +109,9 @@ def insert_cidade(data: dict[str, Any]) -> dict:
         """,
         data,
     )
-    assert row is not None
+    row = ensure(row)
     full = get_cidade(row["id"])
-    assert full is not None
+    full = ensure(full)
     return full
 
 
@@ -174,7 +174,7 @@ def insert_unidade(data: dict[str, Any]) -> dict:
         """,
         data,
     )
-    assert row is not None
+    row = ensure(row)
     return row
 
 
@@ -252,7 +252,7 @@ def insert_delegacia(data: dict[str, Any]) -> dict:
         """,
         data,
     )
-    assert row is not None
+    row = ensure(row)
     return get_delegacia(row["id"])  # type: ignore[return-value]
 
 
@@ -318,7 +318,7 @@ def insert_tipo_procedimento(data: dict[str, Any]) -> dict:
         """,
         data,
     )
-    assert row is not None
+    row = ensure(row)
     return row
 
 
@@ -396,7 +396,7 @@ def insert_delegado(data: dict[str, Any]) -> dict:
         """,
         data,
     )
-    assert row is not None
+    row = ensure(row)
     return get_delegado(row["id"])  # type: ignore[return-value]
 
 
@@ -477,7 +477,7 @@ def insert_escrivao(data: dict[str, Any]) -> dict:
         """,
         data,
     )
-    assert row is not None
+    row = ensure(row)
     return get_escrivao(row["id"])  # type: ignore[return-value]
 
 
@@ -636,7 +636,7 @@ def insert_agente(data: dict[str, Any]) -> dict:
         """,
         data,
     )
-    assert row is not None
+    row = ensure(row)
     _enriquecer_agentes_com_equipes_atuais([row])
     return row
 
@@ -717,9 +717,9 @@ def insert_equipe(data: dict[str, Any]) -> dict:
         """,
         data,
     )
-    assert row is not None
+    row = ensure(row)
     full = get_equipe(row["id"])
-    assert full is not None
+    full = ensure(full)
     return full
 
 
@@ -869,9 +869,9 @@ def insert_processo(data: dict[str, Any]) -> dict:
         """,
         data,
     )
-    assert row is not None
+    row = ensure(row)
     full = get_processo(row["numero"])
-    assert full is not None
+    full = ensure(full)
     return full
 
 
@@ -938,7 +938,7 @@ def insert_tipo_material(data: dict[str, Any]) -> dict:
         """,
         data,
     )
-    assert row is not None
+    row = ensure(row)
     return row
 
 

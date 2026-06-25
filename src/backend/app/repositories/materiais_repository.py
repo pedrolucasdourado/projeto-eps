@@ -8,7 +8,7 @@ from typing import Any
 
 from psycopg2.extras import RealDictCursor
 
-from app.db import fetch_all, fetch_one, get_connection
+from app.db import ensure, fetch_all, fetch_one, get_connection
 
 
 _MATERIAL_SELECT = """
@@ -189,7 +189,7 @@ def create(acba_id: int, payload: dict[str, Any]) -> dict[str, Any]:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             new_id = insert_material_with_cursor(cur, acba_id, payload)
     out = get_by_id(new_id)
-    assert out is not None
+    out = ensure(out)
     return out
 
 
@@ -379,7 +379,7 @@ def insert_ia_run(
         """,
         (material_id, modelo, prompt_versao, request_hash, resposta, custo_tokens),
     )
-    assert row is not None
+    row = ensure(row)
     return row
 
 

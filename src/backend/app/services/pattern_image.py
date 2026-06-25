@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 from io import BytesIO
+from typing import cast
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -45,10 +46,14 @@ def render_pattern_png(
     img = Image.new("RGB", (size, size), background)
     draw = ImageDraw.Draw(img)
 
+    font: ImageFont.ImageFont
     try:
-        font = ImageFont.truetype("DejaVuSans.ttf", size // 22)
+        font = cast(
+            ImageFont.ImageFont,
+            ImageFont.truetype("DejaVuSans.ttf", size // 22),
+        )
     except OSError:
-        font = ImageFont.load_default()
+        font = cast(ImageFont.ImageFont, ImageFont.load_default())
 
     for n in range(1, 10):
         cx, cy = _grid_xy(n, padding, spacing)

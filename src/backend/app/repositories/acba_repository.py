@@ -2,7 +2,7 @@ from typing import Any
 
 from psycopg2.extras import RealDictCursor
 
-from app.db import execute_query, fetch_all, fetch_one, get_connection
+from app.db import ensure, execute_query, fetch_all, fetch_one, get_connection
 from app.repositories import materiais_repository
 
 
@@ -221,7 +221,7 @@ class AcbaRepository:
                         cur, new_id, mat
                     )
         detail = self.get_by_id(new_id)
-        assert detail is not None
+        detail = ensure(detail)
         return detail
 
     def list_all(

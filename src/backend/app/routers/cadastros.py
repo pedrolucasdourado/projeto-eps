@@ -3,6 +3,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from psycopg2 import Error as PsycopgError
 
+from app.db import ensure
 from app.repositories import catalog_repo
 from app.routers.auth import get_authenticated_user
 from app.schemas import UserPublic
@@ -112,7 +113,7 @@ def update_uf(
         updated = catalog_repo.update_uf(uf_id, merged)
     except PsycopgError as exc:
         _raise_pg(exc)
-    assert updated is not None
+    updated = ensure(updated)
     return UFRead.model_validate(updated)
 
 
@@ -166,7 +167,7 @@ def update_cidade(
         updated = catalog_repo.update_cidade(cidade_id, merged)
     except PsycopgError as exc:
         _raise_pg(exc)
-    assert updated is not None
+    updated = ensure(updated)
     return CidadeRead.model_validate(updated)
 
 
@@ -216,7 +217,7 @@ def update_unidade(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Unidade não encontrada.")
     merged = _merge(("nome", "ativo"), row, body.model_dump(exclude_unset=True))
     updated = catalog_repo.update_unidade(unidade_id, merged)
-    assert updated is not None
+    updated = ensure(updated)
     return UnidadeRead.model_validate(updated)
 
 
@@ -268,7 +269,7 @@ def update_delegacia(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Delegacia não encontrada.")
     merged = _merge(("nome", "unidade_id", "cidade_id", "ativo"), row, body.model_dump(exclude_unset=True))
     updated = catalog_repo.update_delegacia(delegacia_id, merged)
-    assert updated is not None
+    updated = ensure(updated)
     return DelegaciaRead.model_validate(updated)
 
 
@@ -284,7 +285,10 @@ def delete_delegacia(delegacia_id: int, *, _user: UserPublic = Depends(get_authe
 
 
 @router.get("/tipos-procedimento", response_model=list[TipoProcedimentoRead])
-def list_tipos(q: str | None = Query(None), _user: UserPublic = Depends(get_authenticated_user)) -> list[TipoProcedimentoRead]:
+def list_tipos(
+    q: str | None = Query(None),
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> list[TipoProcedimentoRead]:
     rows = catalog_repo.list_tipos_procedimento(q)
     return [TipoProcedimentoRead.model_validate(r) for r in rows]
 
@@ -294,7 +298,11 @@ def list_tipos(q: str | None = Query(None), _user: UserPublic = Depends(get_auth
     response_model=TipoProcedimentoRead,
     status_code=status.HTTP_201_CREATED,
 )
-def create_tipo(body: TipoProcedimentoCreate, *, _user: UserPublic = Depends(get_authenticated_user)) -> TipoProcedimentoRead:
+def create_tipo(
+    body: TipoProcedimentoCreate,
+    *,
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> TipoProcedimentoRead:
     try:
         row = catalog_repo.insert_tipo_procedimento(body.model_dump())
     except PsycopgError as exc:
@@ -325,7 +333,7 @@ def update_tipo(
         updated = catalog_repo.update_tipo_procedimento(tipo_id, merged)
     except PsycopgError as exc:
         _raise_pg(exc)
-    assert updated is not None
+    updated = ensure(updated)
     return TipoProcedimentoRead.model_validate(updated)
 
 
@@ -387,7 +395,7 @@ def update_delegado(
         body.model_dump(exclude_unset=True),
     )
     updated = catalog_repo.update_delegado(delegado_id, merged)
-    assert updated is not None
+    updated = ensure(updated)
     return DelegadoRead.model_validate(updated)
 
 
@@ -450,7 +458,7 @@ def update_escrivao_route(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Escrivão não encontrado.")
     merged = _merge(("nome", "delegacia_id", "unidade_id", "ativo"), row, body.model_dump(exclude_unset=True))
     updated = catalog_repo.update_escrivao(escrivao_id, merged)
-    assert updated is not None
+    updated = ensure(updated)
     return EscrivaoRead.model_validate(updated)
 
 
@@ -471,7 +479,10 @@ def delete_escrivao_route(
 
 
 @router.get("/agentes", response_model=list[AgenteListing])
-def list_agentes(q: str | None = Query(None), _user: UserPublic = Depends(get_authenticated_user)) -> list[AgenteListing]:
+def list_agentes(
+    q: str | None = Query(None),
+    _user: UserPublic = Depends(get_authenticated_user),
+) -> list[AgenteListing]:
     rows = catalog_repo.list_agentes(q)
     return [AgenteListing.model_validate(r) for r in rows]
 
@@ -536,7 +547,7 @@ def update_agente(
         updated = catalog_repo.update_agente(agente_id, merged)
     except PsycopgError as exc:
         _raise_pg(exc)
-    assert updated is not None
+    updated = ensure(updated)
     return AgenteListing.model_validate(updated)
 
 
@@ -613,7 +624,7 @@ def update_equipe(
         updated = catalog_repo.update_equipe(equipe_id, merged)
     except PsycopgError as exc:
         _raise_pg(exc)
-    assert updated is not None
+    updated = ensure(updated)
     return EquipeOperacionalRead.model_validate(updated)
 
 
@@ -726,7 +737,7 @@ def update_processo(
         updated = catalog_repo.update_processo(numero, merged)
     except PsycopgError as exc:
         _raise_pg(exc)
-    assert updated is not None
+    updated = ensure(updated)
     return ProcessoRead.model_validate(updated)
 
 
@@ -806,7 +817,7 @@ def update_tipo_material(
         updated = catalog_repo.update_tipo_material(tipo_id, merged)
     except PsycopgError as exc:
         _raise_pg(exc)
-    assert updated is not None
+    updated = ensure(updated)
     return TipoMaterialRead.model_validate(updated)
 
 

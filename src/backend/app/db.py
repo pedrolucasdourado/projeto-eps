@@ -1,10 +1,20 @@
 from contextlib import contextmanager
-from typing import Any, Iterator, Sequence
+from typing import Any, Iterator, Mapping, Sequence, TypeVar
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
 from app.config import settings
+
+QueryParams = Mapping[str, Any] | Sequence[Any] | None
+_T = TypeVar("_T")
+
+
+def ensure(value: _T | None, message: str = "Operação não retornou o registro esperado.") -> _T:
+    """Garante que um valor não é None (substitui `assert` removível em -O)."""
+    if value is None:
+        raise RuntimeError(message)
+    return value
 
 
 @contextmanager
@@ -65,7 +75,7 @@ def fetch_user_by_id(user_id: int) -> dict | None:
             return dict(row) if row else None
 
 
-def fetch_one(query: str, params: Sequence[Any] | None = None) -> dict | None:
+def fetch_one(query: str, params: QueryParams = None) -> dict | None:
     with get_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(query, params or ())
@@ -73,14 +83,14 @@ def fetch_one(query: str, params: Sequence[Any] | None = None) -> dict | None:
             return dict(row) if row else None
 
 
-def fetch_all(query: str, params: Sequence[Any] | None = None) -> list[dict]:
+def fetch_all(query: str, params: QueryParams = None) -> list[dict]:
     with get_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(query, params or ())
             return [dict(row) for row in cur.fetchall()]
 
 
-def execute_query(query: str, params: Sequence[Any] | None = None) -> None:
+def execute_query(query: str, params: QueryParams = None) -> None:
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(query, params or ())

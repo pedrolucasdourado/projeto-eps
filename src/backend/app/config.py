@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://aai:aai_secret@localhost:5432/aai_db"
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60 * 24
+    access_token_expire_minutes: int = 60
     # localhost e 127.0.0.1 são origens distintas para o navegador — inclua ambas se usar um ou outro.
     cors_origins: str = (
         "http://localhost:3000,"

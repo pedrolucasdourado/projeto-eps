@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404 - usado apenas com comando fixo do LibreOffice, sem shell
 import tempfile
 
 from docxtpl import DocxTemplate
@@ -17,8 +17,15 @@ from app.services.acba_pdf_context import _format_senha_docx, build_context
 def _find_libreoffice() -> str:
     cmd = (settings.libreoffice_cmd or "").strip()
     if cmd:
-        return cmd
-    return shutil.which("soffice") or shutil.which("libreoffice") or "soffice"
+        resolved = shutil.which(cmd) or (cmd if os.path.isabs(cmd) else None)
+    else:
+        resolved = shutil.which("soffice") or shutil.which("libreoffice")
+    if not resolved or not os.path.isfile(resolved):
+        raise RuntimeError(
+            "Binário do LibreOffice (soffice/libreoffice) não encontrado no PATH "
+            "nem em LIBREOFFICE_CMD. Instale o LibreOffice ou ajuste a configuração."
+        )
+    return resolved
 
 
 def render_acba_pdf_bytes(detail: AcbaDetail) -> bytes:
@@ -43,7 +50,7 @@ def render_acba_pdf_bytes(detail: AcbaDetail) -> bytes:
 
         soffice = _find_libreoffice()
         env = {**os.environ, "HOME": tmpdir}
-        subprocess.run(
+        subprocess.run(  # nosec B603 - args fixos e binário resolvido; sem shell e sem entrada do usuário
             [
                 soffice,
                 "--headless",

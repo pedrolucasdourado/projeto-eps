@@ -1,7 +1,6 @@
 from typing import Any, NoReturn
 
 from fastapi import HTTPException, status
-from psycopg2 import Error as PsycopgError
 
 from app.repositories import materiais_repository as repo
 from app.schemas.materiais import MaterialCreate, MaterialUpdate
@@ -28,15 +27,19 @@ class MaterialService:
     def create(self, acba_id: int, payload: MaterialCreate) -> dict[str, Any]:
         try:
             return repo.create(acba_id, payload.model_dump())
-        except PsycopgError as exc:
-            self._raise_pg(exc)
+        except Exception as exc:
+            if getattr(exc, "pgcode", None):
+                self._raise_pg(exc)
+            raise
 
     def update(self, material_id: int, payload: MaterialUpdate) -> dict[str, Any]:
         self.get(material_id)  # 404 cedo
         try:
             row = repo.update(material_id, payload.model_dump())
-        except PsycopgError as exc:
-            self._raise_pg(exc)
+        except Exception as exc:
+            if getattr(exc, "pgcode", None):
+                self._raise_pg(exc)
+            raise
         if not row:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -71,7 +74,7 @@ class MaterialService:
     def count_pendentes_revisao(self, acba_id: int) -> int:
         return repo.count_pendentes_revisao(acba_id)
 
-    def _raise_pg(self, exc: PsycopgError) -> NoReturn:
+    def _raise_pg(self, exc: Exception) -> NoReturn:
         code = getattr(exc, "pgcode", None)
         if code == "23503":
             raise HTTPException(
