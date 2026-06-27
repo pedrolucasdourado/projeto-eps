@@ -10,6 +10,16 @@ updates:
       - "dependencies"
       - "security"
 
+  - package-ecosystem: "npm"
+    directory: "/src/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "security"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

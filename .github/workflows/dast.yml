@@ -1,6 +1,4 @@
-# DAST - Dynamic Application Security Testing com OWASP ZAP
-# Sprint 1: arquivo criado como planejamento do ambiente mínimo.
-# Sprint 2: ativar substituindo o trigger abaixo por [push, pull_request].
+# DAST - OWASP ZAP no ambiente staging completo (frontend + backend + Postgres)
 name: DAST-ZAP
 
 on:
@@ -13,67 +11,76 @@ permissions:
   contents: read
 
 jobs:
-  zap-scan:
+  zap-staging:
+    name: ZAP staging (frontend + API)
     runs-on: ubuntu-latest
-    services:
-      db:
-        image: postgres:16
-        env:
-          POSTGRES_USER: aai
-          POSTGRES_PASSWORD: aai_secret
-          POSTGRES_DB: aai_db
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - name: Checkout do Código
         uses: actions/checkout@v7
 
-      - name: Configurar Python 3.12
-        uses: actions/setup-python@v6
+      - name: Preparar variáveis de ambiente CI
+        run: |
+          cat > .env.ci <<'EOF'
+          POSTGRES_USER=aai
+          POSTGRES_PASSWORD=aai_secret_ci_only
+          POSTGRES_DB=aai_db
+          JWT_SECRET=ci-jwt-secret-minimum-32-bytes-long!!
+          GEMINI_API_KEY=
+          GEMINI_MODEL=gemini-2.0-flash
+          CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+          EOF
+
+      - name: Subir stack staging com Docker Compose
+        run: |
+          docker compose --env-file .env.ci \
+            -f docker-compose.yml \
+            -f docker-compose.ci.yml \
+            up --build -d --wait
+
+      - name: Verificar saúde frontend e backend
+        run: |
+          curl -sf http://localhost:8000/health
+          curl -sf -o /dev/null -w "%{http_code}" http://localhost:3000/ | grep -E '^(200|307|308)$'
+
+      - name: Obter token JWT para varredura autenticada
+        run: |
+          TOKEN=$(curl -sf -X POST http://localhost:8000/api/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"admin@admin.com","password":"admin123"}' \
+            | python3 -c 'import sys, json; print(json.load(sys.stdin).get("access_token", ""))') || TOKEN=""
+          if [ -n "$TOKEN" ]; then
+            echo "::add-mask::$TOKEN"
+            echo "ZAP_AUTH_HEADER=Authorization" >> "$GITHUB_ENV"
+            echo "ZAP_AUTH_HEADER_VALUE=Bearer $TOKEN" >> "$GITHUB_ENV"
+            echo "ZAP_AUTH_HEADER_SITE=localhost:8000" >> "$GITHUB_ENV"
+            echo "Token obtido: varredura autenticada habilitada na API."
+          else
+            echo "Login falhou: varredura da API seguirá sem autenticação."
+          fi
+
+      - name: DAST - ZAP Frontend (staging)
+        uses: zaproxy/action-baseline@v0.15.0
         with:
-          python-version: '3.12'
+          target: http://localhost:3000
+          rules_file_name: .zap/rules.tsv
+          fail_action: true
+          allow_issue_writing: false
+          artifact_name: zap-report-frontend
 
-      - name: Instalar dependências do backend
-        run: pip install -r src/backend/requirements.txt
-
-      - name: Inicializar banco de dados (migrations)
-        run: |
-          cd src/backend
-          python -m app.db_init || true
-        env:
-          DATABASE_URL: postgresql://aai:aai_secret@localhost:5432/aai_db
-          JWT_SECRET: ci-secret-only
-          JWT_ALGORITHM: HS256
-
-      - name: Iniciar servidor da aplicação em background
-        run: |
-          cd src/backend
-          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-          # aguarda o servidor responder antes de iniciar o scan
-          timeout 30 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
-        env:
-          DATABASE_URL: postgresql://aai:aai_secret@localhost:5432/aai_db
-          JWT_SECRET: ci-secret-only
-          JWT_ALGORITHM: HS256
-
-      - name: DAST - OWASP ZAP Baseline Scan
+      - name: DAST - ZAP API Backend
         uses: zaproxy/action-baseline@v0.15.0
         with:
           target: http://localhost:8000
-          # TODO Sprint 2: adicionar regras de autenticação para cobrir endpoints protegidos
-          # rules_file_name: .zap/rules.tsv
-          fail_action: false
-          # Evita falha por 403 ao criar issue (token read-only / PRs de fork).
-          # O relatorio continua disponivel no artifact "zap-report".
+          rules_file_name: .zap/rules.tsv
+          fail_action: true
           allow_issue_writing: false
+          artifact_name: zap-report-backend
 
-      - name: Publicar relatório ZAP
-        uses: actions/upload-artifact@v7
+      - name: Encerrar stack staging
         if: always()
-        with:
-          name: zap-report
-          path: report_html.html
+        run: |
+          docker compose --env-file .env.ci \
+            -f docker-compose.yml \
+            -f docker-compose.ci.yml \
+            down -v --remove-orphans

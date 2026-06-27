@@ -14,13 +14,16 @@ jobs:
           python-version: '3.12'
 
       - name: Instalar Ferramentas de Auditoria
-        run: pip install bandit "safety>=3.0" mypy
+        run: pip install bandit "safety>=3.0" mypy flake8 checkov
 
       - name: SAST - Auditoria Bandit (Vulnerabilidades Lógicas)
         run: bandit -r src/ -ll --ini .bandit
 
+      - name: SAST - Flake8 (Estilo e Erros Estáticos Python)
+        run: flake8 src/backend/app
+
       - name: SCA - Auditoria Safety (Bibliotecas Inseguras - Backend)
-        run: safety scan --output text --file src/backend/requirements.txt || true
+        run: safety scan --output screen --file src/backend/requirements.txt
 
       - name: Configurar Node.js 20
         uses: actions/setup-node@v4
@@ -35,7 +38,12 @@ jobs:
 
       - name: SCA - Auditoria npm (Bibliotecas Inseguras - Frontend)
         working-directory: src/frontend
-        run: npm audit || true
+        run: npm audit --audit-level=moderate
 
       - name: Análise Estática de Tipos - mypy
-        run: mypy src/backend/app --config-file src/backend/mypy.ini --ignore-missing-imports || true
+        run: mypy src/backend/app --config-file src/backend/mypy.ini
+
+      - name: IaC - Checkov (Dockerfiles e Docker Compose)
+        run: |
+          checkov -d src --framework dockerfile --compact --quiet
+          checkov -f docker-compose.yml -f docker-compose.ci.yml --framework yaml --compact --quiet

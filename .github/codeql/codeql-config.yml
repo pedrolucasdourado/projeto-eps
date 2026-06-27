@@ -1,0 +1,12 @@
+name: "AAI CodeQL config"
+
+paths:
+  - src/backend
+  - src/frontend
+
+paths-ignore:
+  - "**/node_modules/**"
+  - "**/.venv/**"
+  - "**/coverage_html/**"
+  - "**/dist/**"
+  - "**/build/**"

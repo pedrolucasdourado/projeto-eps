@@ -33,6 +33,7 @@ build/
 .venv/
 venv/
 .venv-security/
+.venv-audit/
 
 # Node / Next.js
 node_modules/

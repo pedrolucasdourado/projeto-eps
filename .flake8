@@ -1,0 +1,12 @@
+[flake8]
+max-line-length = 120
+extend-exclude =
+    .venv,
+    .venv-audit,
+    node_modules,
+    dist,
+    build,
+    __pycache__,
+    coverage_html
+per-file-ignores =
+    src/backend/tests/*: E501
