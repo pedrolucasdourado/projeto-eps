@@ -21,6 +21,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY templates ./templates
 
+RUN groupadd --system aai && useradd --system --gid aai --home /app aai \
+    && chown -R aai:aai /app
+
+USER aai
+
 EXPOSE 8000
+
+HEALTHCHECK --interval=5s --timeout=3s --retries=8 --start-period=25s \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)" || exit 1
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

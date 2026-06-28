@@ -1,14 +1,23 @@
+networks:
+  aai_internal:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
 services:
   postgres:
     image: postgres:16-alpine
+    networks:
+      - aai_internal
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-aai}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aai_secret_change_me}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}
       POSTGRES_DB: ${POSTGRES_DB:-aai_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test:
         [
@@ -18,37 +27,48 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 2.0
 
   flyway:
     image: flyway/flyway:10-alpine
+    networks:
+      - aai_internal
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       FLYWAY_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-aai_db}
       FLYWAY_USER: ${POSTGRES_USER:-aai}
-      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-aai_secret_change_me}
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}
       FLYWAY_LOCATIONS: filesystem:/flyway/sql
       FLYWAY_CONNECT_RETRIES: "60"
     volumes:
-      - ./database/flyway/sql:/flyway/sql
+      - ./database/flyway/sql:/flyway/sql:ro
     command: migrate
+    security_opt:
+      - no-new-privileges:true
 
   backend:
     build:
       context: ./src/backend
+    networks:
+      - aai_internal
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-aai}:${POSTGRES_PASSWORD:-aai_secret_change_me}@postgres:5432/${POSTGRES_DB:-aai_db}
-      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-aai}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-aai_db}
+      JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET no .env (mín. 32 caracteres recomendado)}
       CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://[::1]:3000}"
       ACBA_PDF_RENDERER: ${ACBA_PDF_RENDERER:-html}
       ACBA_HTML_TEMPLATE_PATH: ${ACBA_HTML_TEMPLATE_PATH:-/app/templates/acba_template.html}
       ACBA_DOCX_TEMPLATE_PATH: ${ACBA_DOCX_TEMPLATE_PATH:-/app/templates/acba_template.docx}
       LIBREOFFICE_CMD: ${LIBREOFFICE_CMD:-}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      GEMINI_MODEL: ${GEMINI_MODEL}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
     healthcheck:
       test:
         [
@@ -64,21 +84,36 @@ services:
     depends_on:
       flyway:
         condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    tmpfs:
+      - /tmp:size=256M,mode=1777
+    mem_limit: 2g
+    cpus: 2.0
 
   frontend:
     build:
       context: ./src/frontend
       args:
-        # Opcional: defina http://backend:8000 e NEXT_PUBLIC_API_URL vazio para proxy /api (mesmo host).
-        # Padrão vazio = sem proxy; o navegador chama a API na porta publicada (localhost:8000).
         INTERNAL_API_URL: ${INTERNAL_API_URL:-}
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
         NEXT_PUBLIC_BASE_PATH: ${NEXT_PUBLIC_BASE_PATH:-}
+    networks:
+      - aai_internal
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
     depends_on:
       backend:
         condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=64M,mode=1777
+    mem_limit: 512m
+    cpus: 1.0
 
 volumes:
   postgres_data:

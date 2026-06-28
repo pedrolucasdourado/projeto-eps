@@ -1,0 +1,15 @@
+# Overrides para CI/DAST: stack completa sem expor Postgres ao host.
+services:
+  postgres:
+    ports: []
+
+  backend:
+    environment:
+      CORS_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000,http://frontend:3000"
+
+  frontend:
+    build:
+      args:
+        INTERNAL_API_URL: http://backend:8000
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+        NEXT_PUBLIC_BASE_PATH: ""
