@@ -37,6 +37,10 @@ jobs:
           docker compose --env-file .env.ci \
             -f docker-compose.yml \
             -f docker-compose.ci.yml \
+            down -v --remove-orphans 2>/dev/null || true
+          docker compose --env-file .env.ci \
+            -f docker-compose.yml \
+            -f docker-compose.ci.yml \
             up --build -d --wait --wait-timeout 600
 
       - name: Verificar saúde frontend e backend

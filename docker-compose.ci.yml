@@ -1,18 +1,20 @@
 # Overrides para CI/DAST: staging completo (frontend + API + Postgres interno).
 # Uso: docker compose --env-file .env.ci -f docker-compose.yml -f docker-compose.ci.yml up --build -d --wait
+#
+# !override evita merge de portas do compose base (127.0.0.1:8000 + 8000 = "address already in use").
 services:
   postgres:
-    ports: []
+    ports: !override []
 
   backend:
-    ports:
-      - "8000:8000"
+    ports: !override
+      - "127.0.0.1:8000:8000"
     environment:
       CORS_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000,http://frontend:3000"
 
   frontend:
-    ports:
-      - "3000:3000"
+    ports: !override
+      - "127.0.0.1:3000:3000"
     build:
       args:
         INTERNAL_API_URL: http://backend:8000
