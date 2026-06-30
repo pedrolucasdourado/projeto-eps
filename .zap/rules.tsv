@@ -1,5 +1,4 @@
 # OWASP ZAP Baseline — regras AAI
 # Formato (TAB): <plugin_id>	<IGNORE|WARN|FAIL>	<comentario>
-10049	IGNORE	Non-Storable Content - API/SSR dinamico
-10015	IGNORE	Cache-control - nao aplicavel a respostas dinamicas
-10109	IGNORE	Modern Web Application - informativo SPA Next.js (nao corrigivel)
+# Sem IGNORE global: alertas corrigidos no código (headers, CSP nonce, COEP).
+# Regras FAIL permanecem bloqueantes no CI (sem cmd_options -I).

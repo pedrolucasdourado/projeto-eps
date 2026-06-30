@@ -19,6 +19,9 @@ export const metadata: Metadata = {
   },
 };
 
+/** Obrigatório para CSP com nonce por request (Next.js docs). */
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{
