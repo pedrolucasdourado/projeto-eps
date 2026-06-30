@@ -7,7 +7,7 @@ bcrypt==5.0.0
 pydantic-settings==2.7.0
 email-validator==2.2.0
 python-docx==1.2.0
-docxtpl==0.19.1
+docxtpl==0.20.2
 Jinja2>=3.1.6
 weasyprint==69.0
 Pillow>=12.2.0
