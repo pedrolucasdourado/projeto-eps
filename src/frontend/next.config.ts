@@ -9,9 +9,6 @@ const basePath = (process.env.NEXT_PUBLIC_BASE_PATH ?? "")
 const nextConfig: NextConfig = {
   output: "standalone",
   ...(basePath ? { basePath } : {}),
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   async rewrites() {
     if (!internalApi) {
       return [];
