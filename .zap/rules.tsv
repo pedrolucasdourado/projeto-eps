@@ -1,5 +1,5 @@
-# OWASP ZAP Baseline - ajuste de regras
-# Formato (separado por TAB): <plugin_id>	<IGNORE|WARN|FAIL>	<comentario>
-# Regras de seguranca relevantes permanecem em WARN/FAIL (padrao do baseline).
-10049	IGNORE	Storable and Cacheable Content - ruido em API JSON sem cache
-10015	IGNORE	Re-examine Cache-control - nao aplicavel a respostas de API
+# OWASP ZAP Baseline — regras AAI
+# Formato (TAB): <plugin_id>	<IGNORE|WARN|FAIL>	<comentario>
+10049	IGNORE	Non-Storable Content - API/SSR dinamico
+10015	IGNORE	Cache-control - nao aplicavel a respostas dinamicas
+10109	IGNORE	Modern Web Application - informativo SPA Next.js (nao corrigivel)

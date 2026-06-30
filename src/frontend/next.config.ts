@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 
+import {
+  securityHeaders,
+  staticAssetHeaders,
+} from "./src/lib/security-headers";
+
 /** No Docker, use INTERNAL_API_URL=http://backend:8000 para o proxy de /api e evitar CORS. */
 const internalApi = process.env.INTERNAL_API_URL?.trim();
 const basePath = (process.env.NEXT_PUBLIC_BASE_PATH ?? "")
@@ -8,7 +13,20 @@ const basePath = (process.env.NEXT_PUBLIC_BASE_PATH ?? "")
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  poweredByHeader: false,
   ...(basePath ? { basePath } : {}),
+  async headers() {
+    return [
+      {
+        source: "/_next/static/:path*",
+        headers: staticAssetHeaders,
+      },
+      {
+        source: "/:path*",
+        headers: securityHeaders,
+      },
+    ];
+  },
   async rewrites() {
     if (!internalApi) {
       return [];
