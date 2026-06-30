@@ -1,4 +1,4 @@
-# DAST - OWASP ZAP no ambiente staging completo (frontend + backend + Postgres)
+# DAST — OWASP ZAP no ambiente staging completo (frontend + backend + Postgres)
 name: DAST-ZAP
 
 on:
@@ -14,6 +14,7 @@ jobs:
   zap-staging:
     name: ZAP staging (frontend + API)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
       - name: Checkout do Código
@@ -36,12 +37,24 @@ jobs:
           docker compose --env-file .env.ci \
             -f docker-compose.yml \
             -f docker-compose.ci.yml \
-            up --build -d --wait
+            up --build -d --wait --wait-timeout 600
 
       - name: Verificar saúde frontend e backend
         run: |
-          curl -sf http://localhost:8000/health
-          curl -sf -o /dev/null -w "%{http_code}" http://localhost:3000/ | grep -E '^(200|307|308)$'
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health >/dev/null \
+              && curl -sf -o /dev/null -w "%{http_code}" http://localhost:3000/ | grep -qE '^(200|307|308)$'; then
+              echo "Stack staging saudável."
+              exit 0
+            fi
+            echo "Aguardando stack... tentativa $i/30"
+            sleep 10
+          done
+          echo "Stack staging não ficou saudável a tempo."
+          docker compose --env-file .env.ci -f docker-compose.yml -f docker-compose.ci.yml ps
+          docker compose --env-file .env.ci -f docker-compose.yml -f docker-compose.ci.yml logs --no-color
+          exit 1
 
       - name: Obter token JWT para varredura autenticada
         run: |

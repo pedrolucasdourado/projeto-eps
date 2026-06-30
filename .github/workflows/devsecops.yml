@@ -14,7 +14,7 @@ jobs:
           python-version: '3.12'
 
       - name: Instalar Ferramentas de Auditoria
-        run: pip install bandit "safety>=3.0" mypy flake8 checkov
+        run: pip install bandit mypy flake8 checkov
 
       - name: SAST - Auditoria Bandit (Vulnerabilidades Lógicas)
         run: bandit -r src/ -ll --ini .bandit
@@ -23,7 +23,10 @@ jobs:
         run: flake8 src/backend/app
 
       - name: SCA - Auditoria Safety (Bibliotecas Inseguras - Backend)
-        run: safety scan --output screen --file src/backend/requirements.txt
+        uses: pyupio/safety-action@v1
+        with:
+          api-key: ${{ secrets.SAFETY_API_KEY }}
+          args: --file src/backend/requirements.txt --detailed-output
 
       - name: Configurar Node.js 20
         uses: actions/setup-node@v6

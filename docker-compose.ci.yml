@@ -1,15 +1,32 @@
-# Overrides para CI/DAST: stack completa sem expor Postgres ao host.
+# Overrides para CI/DAST: staging completo (frontend + API + Postgres interno).
+# Uso: docker compose --env-file .env.ci -f docker-compose.yml -f docker-compose.ci.yml up --build -d --wait
 services:
   postgres:
     ports: []
 
   backend:
+    ports:
+      - "8000:8000"
     environment:
       CORS_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000,http://frontend:3000"
 
   frontend:
+    ports:
+      - "3000:3000"
     build:
       args:
         INTERNAL_API_URL: http://backend:8000
         NEXT_PUBLIC_API_URL: http://localhost:8000
         NEXT_PUBLIC_BASE_PATH: ""
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3000', (r) => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s

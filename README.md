@@ -89,7 +89,8 @@ Veja [.env.example](.env.example). Principais:
 │   └── backend/       # FastAPI (/api/auth, /api/acba, /api/cadastros, health)
 ├── database/flyway/sql/ # Scripts versionados Flyway
 ├── docker-compose.yml
-├── .env.example
+├── docker-compose.ci.yml   # Overrides CI/DAST (staging ZAP)
+├── docs/IaC_Compose_Checkov.md
 └── README.md
 ```
 
@@ -97,3 +98,13 @@ Veja [.env.example](.env.example). Principais:
 
 - **Backend:** Python 3.12, `pip install -r src/backend/requirements.txt`, exporte `DATABASE_URL` apontando para um Postgres com migrations aplicadas, depois `uvicorn app.main:app --reload` a partir da pasta `src/backend/`.
 - **Frontend:** Node 20+, `npm install` e `npm run dev` na pasta `src/frontend/`, com `NEXT_PUBLIC_API_URL` apontando para a API.
+
+## DevSecOps (IaC e DAST)
+
+| Passo | Ferramenta | Artefato |
+|-------|-----------|----------|
+| DAST (6) | OWASP ZAP | `.github/workflows/dast.yml` — staging completo (frontend + API via Compose) |
+| IaC (7) | Docker Compose + Checkov | `docker-compose.yml`, `docker-compose.ci.yml`, `docs/IaC_Compose_Checkov.md` |
+
+- **Staging DAST:** `docker compose --env-file .env.ci -f docker-compose.yml -f docker-compose.ci.yml up --build -d --wait`
+- **Validar IaC:** `checkov -d src --framework dockerfile && checkov -f docker-compose.yml -f docker-compose.ci.yml --framework yaml`
