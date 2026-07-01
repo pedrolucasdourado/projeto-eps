@@ -1,9 +1,38 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { baseSecurityHeaders, buildCspHeader } from "@/lib/security-headers";
+import {
+  baseSecurityHeaders,
+  buildCspHeader,
+  isPublicTextPath,
+  isStaticResourcePath,
+  publicTextHeaders,
+  staticAssetHeaders,
+} from "@/lib/security-headers";
+
+function applyHeaders(
+  response: NextResponse,
+  headers: { key: string; value: string }[],
+) {
+  response.headers.delete("cache-control");
+  response.headers.delete("Cache-Control");
+  for (const { key, value } of headers) {
+    response.headers.set(key, value);
+  }
+  return response;
+}
 
 export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (isPublicTextPath(pathname)) {
+    return applyHeaders(NextResponse.next(), publicTextHeaders);
+  }
+
+  if (isStaticResourcePath(pathname)) {
+    return applyHeaders(NextResponse.next(), staticAssetHeaders);
+  }
+
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const csp = buildCspHeader(nonce);
 
@@ -16,15 +45,12 @@ export function middleware(request: NextRequest) {
   });
 
   response.headers.set("Content-Security-Policy", csp);
-  for (const { key, value } of baseSecurityHeaders) {
-    response.headers.set(key, value);
-  }
+  applyHeaders(response, baseSecurityHeaders);
 
   return response;
 }
 
+/** _next/image é otimizado pelo Next; demais rotas passam pelo middleware. */
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2)$).*)",
-  ],
+  matcher: ["/((?!_next/image).*)"],
 };
