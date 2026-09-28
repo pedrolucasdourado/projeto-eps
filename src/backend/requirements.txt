@@ -11,7 +11,7 @@ docxtpl==0.20.2
 Jinja2>=3.1.6
 weasyprint==69.0
 Pillow>=12.2.0
-google-genai==2.10.0
+google-genai==2.25.0
 pytest==9.1.1
 pytest-cov>=7.1.0
 pytest-bdd==8.1.0
